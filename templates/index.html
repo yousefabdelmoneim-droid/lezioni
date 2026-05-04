@@ -93,7 +93,7 @@
       <div class="w-7 h-7 bg-ink-900 rounded-lg flex items-center justify-center">
         <svg class="w-4 h-4 text-ink-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0-3.332.477-4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
         </svg>
       </div>
       <span class="font-bold text-ink-900 text-base tracking-tight">Lezioni Private</span>
@@ -138,8 +138,10 @@
                 <h2 class="font-bold text-ink-900 text-lg leading-tight">{{ s.name }}</h2>
                 <div class="flex items-center gap-2 mt-1 flex-wrap">
                   <span class="badge badge-grey">{{ s.weekly_plan }}×/sett.</span>
-                  {% if s.lesson_days_list %}
-                    <span class="badge badge-grey font-mono text-ink-500">{{ s.lesson_days_list | join(' · ') }}</span>
+                  {% if s.lesson_days %}
+                    <span class="badge badge-grey font-mono text-ink-500">
+                      {{ s.lesson_days | replace(',', ' · ') }}
+                    </span>
                   {% endif %}
                 </div>
               </div>
@@ -153,7 +155,7 @@
 
             <div class="mb-4">
               <div class="bg-ink-50 rounded-xl p-4 text-center">
-                <div class="stat-n" id="total-{{ s.id }}">{{ s.lessons_since_reset }}</div>
+                <div class="stat-n" id="total-{{ s.id }}">{{ s.lessons | selectattr('pagato', 'equalto', false) | list | length }}</div>
                 <div class="stat-l">Lezioni da saldare</div>
               </div>
             </div>
@@ -211,24 +213,38 @@
           </div>
         </div>
 
-        <div>
-          <label class="lbl" for="s-day1">Giorno della lezione</label>
-          <select class="ctrl" id="s-day1" name="lesson_day_1">
-            <option value="">— Seleziona giorno —</option>
-            {% for g in giorni %}
-              <option value="{{ g }}">{{ g }}</option>
-            {% endfor %}
-          </select>
+        <div class="grid grid-cols-2 gap-3 mt-3">
+          <div>
+            <label class="lbl" for="s-day1">Primo giorno</label>
+            <select class="ctrl" id="s-day1" name="lesson_day_1" required>
+              <option value="">— Seleziona —</option>
+              {% for g in giorni %}
+                <option value="{{ g }}">{{ g }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="lbl" for="s-time1">Orario</label>
+            <input class="ctrl" type="time" id="s-time1" name="lesson_time_1" required/>
+          </div>
         </div>
 
-        <div id="day2-block" class="hidden">
-          <label class="lbl" for="s-day2">Secondo giorno della lezione</label>
-          <select class="ctrl" id="s-day2" name="lesson_day_2">
-            <option value="">— Seleziona giorno —</option>
-            {% for g in giorni %}
-              <option value="{{ g }}">{{ g }}</option>
-            {% endfor %}
-          </select>
+        <div id="day2-block" class="hidden mt-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="lbl" for="s-day2">Secondo giorno</label>
+              <select class="ctrl" id="s-day2" name="lesson_day_2">
+                <option value="">— Seleziona —</option>
+                {% for g in giorni %}
+                  <option value="{{ g }}">{{ g }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="lbl" for="s-time2">Orario</label>
+              <input class="ctrl" type="time" id="s-time2" name="lesson_time_2" />
+            </div>
+          </div>
         </div>
 
         <button type="submit" class="btn btn-dark w-full justify-center">
@@ -521,19 +537,22 @@ async function azzeraContatore(id) {
   }
 }
 
-// ── Selezione giorni lezione (dinamica) ─────────────────────────────────────
+// ── Selezione giorni e orari (dinamica) ─────────────────────────────────────
 function aggiornaSelezioneGiorni(valore) {
   const block = document.getElementById('day2-block');
   const sel2  = document.getElementById('s-day2');
+  const time2 = document.getElementById('s-time2');
+  
   if (!block) return;
 
   if (valore === '2') {
     block.classList.remove('hidden');
-    sel2.required = true;
+    if(sel2) sel2.required = true;
+    if(time2) time2.required = true;
   } else {
     block.classList.add('hidden');
-    sel2.required = false;
-    sel2.value = '';
+    if(sel2) { sel2.required = false; sel2.value = ''; }
+    if(time2) { time2.required = false; time2.value = ''; }
   }
 }
 
