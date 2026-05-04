@@ -7,7 +7,5 @@ services:
     envVars:
       - key: SECRET_KEY
         generateValue: true
-    disk:
-      name: db
-      mountPath: /opt/render/project/src
-      sizeGB: 1
+      - key: DATABASE_URL
+        sync: false   # imposta manualmente dalla dashboard Render con la stringa Neon
