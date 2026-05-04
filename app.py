@@ -1,26 +1,20 @@
 import os
 import sys
 from datetime import timedelta
-
 if sys.version_info >= (3, 9):
     from zoneinfo import ZoneInfo
 else:
     from backports.zoneinfo import ZoneInfo
-
 from datetime import datetime
-
 from flask import Flask, flash, jsonify, redirect, render_template, request, url_for
 from sqlalchemy import func, text
 from sqlalchemy.orm import subqueryload
-
 from models import GIORNI_SETTIMANA, Lesson, Student, db, oggi_rome, ROME
 
 # ── App factory ──────────────────────────────────────────────────────────────
-
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DB_PATH  = os.path.join(BASE_DIR, "app.db")
 
-# PostgreSQL (Neon) via DATABASE_URL, fallback a SQLite in locale
 _db_url = os.environ.get("DATABASE_URL", f"sqlite:///{DB_PATH}")
 if _db_url.startswith("postgres://"):
     _db_url = _db_url.replace("postgres://", "postgresql://", 1)
@@ -44,14 +38,14 @@ def _migrate(app_ctx):
         student_cols = [c["name"] for c in inspector.get_columns("students")]
         if "lesson_days" not in student_cols:
             with db.engine.connect() as conn:
-                conn.execute(text("ALTER TABLE lessons ADD COLUMN pagato BOOLEAN NOT NULL DEFAULT false"))
+                conn.execute(text("ALTER TABLE students ADD COLUMN lesson_days VARCHAR(200) DEFAULT ''"))
                 conn.commit()
 
-        # lessons: pagato (soft delete / payment flag)
+        # lessons: pagato
         lesson_cols = [c["name"] for c in inspector.get_columns("lessons")]
         if "pagato" not in lesson_cols:
             with db.engine.connect() as conn:
-                conn.execute(text("ALTER TABLE lessons ADD COLUMN pagato BOOLEAN NOT NULL DEFAULT 0"))
+                conn.execute(text("ALTER TABLE lessons ADD COLUMN pagato BOOLEAN NOT NULL DEFAULT false"))
                 conn.commit()
 
 
@@ -68,7 +62,6 @@ def _week_bounds():
 
 
 def _all_students():
-    """Students with lessons eagerly loaded — prevents N+1 on property access."""
     return (
         Student.query
         .options(subqueryload(Student.lessons))
@@ -78,7 +71,6 @@ def _all_students():
 
 
 def _parse_days(form, weekly_plan):
-    """Extract and validate lesson_days from form data."""
     day1 = form.get("lesson_day_1", "").strip()
     day2 = form.get("lesson_day_2", "").strip()
     days = []
@@ -92,7 +84,6 @@ def _parse_days(form, weekly_plan):
 
 
 def _fmt_date(d):
-    """Formatta data senza %-d (non portabile su Windows/Render)."""
     return f"{d.day} {d.strftime('%b %Y')}"
 
 
@@ -186,7 +177,6 @@ def delete_student(student_id):
 
 @app.route("/studenti/<int:student_id>/azzera", methods=["POST"])
 def reset_counter(student_id):
-    """AJAX endpoint — soft delete: segna tutte le lezioni come pagate."""
     student = Student.query.get_or_404(student_id)
     try:
         Lesson.query.filter_by(student_id=student_id, pagato=False).update({"pagato": True})
@@ -356,7 +346,6 @@ def calendario_view():
 
 # ── API ───────────────────────────────────────────────────────────────────────
 
-# Palette colori per studenti (assegnata ciclicamente per id)
 _PALETTE = [
     "#438546", "#2563eb", "#d97706", "#7c3aed",
     "#0891b2", "#db2777", "#059669", "#dc2626",
@@ -374,21 +363,19 @@ def api_lezioni():
     for l in lessons:
         color = _PALETTE[l.student_id % len(_PALETTE)]
         start_iso = f"{l.date.isoformat()}T{l.time}:00"
-        # durata default 1 ora
         end_h = int(l.time[:2])
         end_m = int(l.time[3:])
         end_m += 60
         end_h += end_m // 60
         end_m = end_m % 60
         end_iso = f"{l.date.isoformat()}T{end_h:02d}:{end_m:02d}:00"
-
         events.append({
-            "id":       l.id,
-            "title":    l.student.name,
-            "start":    start_iso,
-            "end":      end_iso,
-            "color":    color,
-            "pagato":   l.pagato,
+            "id":     l.id,
+            "title":  l.student.name,
+            "start":  start_iso,
+            "end":    end_iso,
+            "color":  color,
+            "pagato": l.pagato,
         })
     return jsonify(events)
 
