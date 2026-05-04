@@ -44,7 +44,7 @@ def _migrate(app_ctx):
         student_cols = [c["name"] for c in inspector.get_columns("students")]
         if "lesson_days" not in student_cols:
             with db.engine.connect() as conn:
-                conn.execute(text("ALTER TABLE students ADD COLUMN lesson_days VARCHAR(200) DEFAULT ''"))
+                conn.execute(text("ALTER TABLE lessons ADD COLUMN pagato BOOLEAN NOT NULL DEFAULT false"))
                 conn.commit()
 
         # lessons: pagato (soft delete / payment flag)
