@@ -7,6 +7,10 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <!-- FullCalendar CDN -->
+  <link  href="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.11/index.global.min.css" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.11/index.global.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.11/locales/it.global.min.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -45,6 +49,8 @@
     .badge-ok     { background:#e0ece0; color:#29532b; }
     .badge-warn   { background:#fef3c7; color:#92400e; }
     .badge-grey   { background:#e8e8e0; color:#454538; }
+    .badge-pagato { background:#e0ece0; color:#29532b; }
+    .badge-nonpagato { background:#fff1f2; color:#e11d48; border:1px solid #ffe4e6; }
     .flash-success { background:#e0ece0; border:1px solid #c2d9c3; color:#29532b; padding:.75rem 1rem; border-radius:10px; font-size:.875rem; font-weight:500; }
     .flash-error   { background:#fff1f2; border:1px solid #ffe4e6; color:#e11d48;  padding:.75rem 1rem; border-radius:10px; font-size:.875rem; font-weight:500; }
     .stat-n { font-size:1.85rem; font-weight:700; color:#1e1e18; line-height:1; }
@@ -55,6 +61,22 @@
     #toast { position:fixed; bottom:5rem; left:50%; transform:translateX(-50%) translateY(20px); z-index:9999; opacity:0; transition:all .3s ease; pointer-events:none; }
     #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
     @media(max-width:640px) { .hide-sm { display:none!important; } }
+
+    /* FullCalendar overrides */
+    #fc-wrapper .fc { font-family:'DM Sans',sans-serif; font-size:.82rem; }
+    #fc-wrapper .fc-toolbar-title { font-size:1rem; font-weight:700; color:#1e1e18; }
+    #fc-wrapper .fc-button { background:#1e1e18!important; border-color:#1e1e18!important; font-size:.78rem!important; font-weight:600!important; border-radius:8px!important; padding:.35rem .7rem!important; }
+    #fc-wrapper .fc-button:hover { background:#32322a!important; }
+    #fc-wrapper .fc-button-active { background:#438546!important; border-color:#438546!important; }
+    #fc-wrapper .fc-col-header-cell { background:#f5f5f0; }
+    #fc-wrapper .fc-col-header-cell-cushion { font-weight:700; color:#6e6e5a; font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; text-decoration:none; }
+    #fc-wrapper .fc-event { border-radius:6px!important; border:none!important; font-size:.75rem!important; font-weight:600!important; padding:1px 4px!important; }
+    #fc-wrapper .fc-timegrid-slot { height:2.5rem; }
+    #fc-wrapper .fc-scrollgrid { border-radius:12px; overflow:hidden; border-color:#e8e8e0!important; }
+    #fc-wrapper .fc-scrollgrid td, #fc-wrapper .fc-scrollgrid th { border-color:#e8e8e0!important; }
+    #fc-wrapper .fc-daygrid-day-number, #fc-wrapper .fc-timegrid-axis-cushion { color:#8a8a76; font-size:.75rem; text-decoration:none; }
+    #fc-wrapper .fc-day-today { background:rgba(67,133,70,.06)!important; }
+    #fc-wrapper .fc-now-indicator-line { border-color:#e11d48; }
   </style>
 </head>
 <body>
@@ -80,9 +102,10 @@
       <span class="font-bold text-ink-900 text-base tracking-tight">Lezioni Private</span>
     </div>
     <nav class="flex items-center gap-1">
-      <a href="{{ url_for('index') }}"        class="nav-item {% if view=='dashboard' %}attivo{% endif %}">Riepilogo</a>
-      <a href="{{ url_for('lessons_view') }}" class="nav-item {% if view=='lessons' %}attivo{% endif %}">Storico</a>
-      <a href="{{ url_for('upcoming_view') }}" class="nav-item hide-sm {% if view=='upcoming' %}attivo{% endif %}">Prossime</a>
+      <a href="{{ url_for('index') }}"           class="nav-item {% if view=='dashboard' %}attivo{% endif %}">Riepilogo</a>
+      <a href="{{ url_for('lessons_view') }}"    class="nav-item {% if view=='lessons' %}attivo{% endif %}">Storico</a>
+      <a href="{{ url_for('upcoming_view') }}"   class="nav-item hide-sm {% if view=='upcoming' %}attivo{% endif %}">Prossime</a>
+      <a href="{{ url_for('calendario_view') }}" class="nav-item hide-sm {% if view=='calendario' %}attivo{% endif %}">Calendario</a>
     </nav>
   </div>
 </header>
@@ -110,25 +133,6 @@
   <!-- ══════════════════ RIEPILOGO (dashboard) ══════════════════ -->
   {% if view == 'dashboard' %}
 
-    <!-- Warning bar: studenti in ritardo -->
-    {% set ritardo = students | selectattr('weekly_warning') | list %}
-    {% if ritardo %}
-      <div style="background:linear-gradient(135deg,#fffbeb,#fff7d6);border:1.5px solid #fde68a;" class="rounded-xl p-4">
-        <div class="flex items-center gap-2 mb-3">
-          <svg class="w-4 h-4 text-warm-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
-          <span class="text-sm font-bold text-warm-700">In ritardo questa settimana</span>
-        </div>
-        <div class="space-y-2">
-          {% for s in ritardo %}
-            <div class="flex items-center justify-between bg-white/70 rounded-lg px-3 py-2">
-              <span class="font-semibold text-ink-800 text-sm">{{ s.name }}</span>
-              <span class="font-mono text-xs font-bold text-warm-700">{{ s.lessons_this_week }}/{{ s.weekly_plan }} questa settimana</span>
-            </div>
-          {% endfor %}
-        </div>
-      </div>
-    {% endif %}
-
     <!-- Schede studenti -->
     {% if students %}
       <div class="space-y-3">
@@ -144,11 +148,6 @@
                   {% if s.lesson_days_list %}
                     <span class="badge badge-grey font-mono text-ink-500">{{ s.lesson_days_list | join(' · ') }}</span>
                   {% endif %}
-                  {% if s.weekly_warning %}
-                    <span class="badge badge-warn">⚠ In ritardo</span>
-                  {% else %}
-                    <span class="badge badge-ok">✓ In regola</span>
-                  {% endif %}
                 </div>
               </div>
               <!-- Pulsante lezione rapida -->
@@ -160,11 +159,11 @@
               </form>
             </div>
 
-            <!-- Contatore totale lezioni -->
+            <!-- Contatore lezioni non pagate -->
             <div class="mb-4">
               <div class="bg-ink-50 rounded-xl p-4 text-center">
-                <div class="stat-n" id="total-{{ s.id }}">{{ s.lessons | length }}</div>
-                <div class="stat-l">Lezioni totali</div>
+                <div class="stat-n" id="total-{{ s.id }}">{{ s.lessons_since_reset }}</div>
+                <div class="stat-l">Lezioni da saldare</div>
               </div>
             </div>
 
@@ -179,7 +178,6 @@
                 Pagato
               </button>
               <div class="ml-auto">
-                <!-- FIX XSS: nomi con apostrofo (D'Amico) non rompono il JS -->
                 <form action="{{ url_for('delete_student', student_id=s.id) }}" method="POST"
                       data-nome="{{ s.name | e }}"
                       onsubmit="return confirm('Eliminare ' + this.dataset.nome + ' e tutte le sue lezioni?')">
@@ -271,7 +269,7 @@
                 </div>
                 <div>
                   <div class="font-semibold text-ink-800 text-sm">{{ l.student.name }}</div>
-                  <div class="text-xs text-ink-400 font-mono">{{ l.date.strftime('%a %-d %b') }} · {{ l.time }}</div>
+                  <div class="text-xs text-ink-400 font-mono">{{ l.date.strftime('%a') }} {{ l.date.day }} {{ l.date.strftime('%b') }} · {{ l.time }}</div>
                 </div>
               </div>
               <form action="{{ url_for('delete_lesson', lesson_id=l.id) }}" method="POST"
@@ -336,7 +334,7 @@
       </div>
     </div>
 
-    <!-- Lista lezioni -->
+    <!-- Lista lezioni con badge pagato/non pagato -->
     {% if lessons %}
       <div class="card overflow-hidden">
         <div class="divide-y divide-ink-50">
@@ -347,8 +345,15 @@
                   <span class="text-sm font-bold text-ink-600">{{ l.student.name[0].upper() }}</span>
                 </div>
                 <div>
-                  <div class="font-semibold text-ink-800 text-sm">{{ l.student.name }}</div>
-                  <div class="text-xs text-ink-400 font-mono">{{ l.date.strftime('%A %-d %b %Y') }} · {{ l.time }}</div>
+                  <div class="flex items-center gap-2">
+                    <span class="font-semibold text-ink-800 text-sm">{{ l.student.name }}</span>
+                    {% if l.pagato %}
+                      <span class="badge badge-pagato">✓ Pagato</span>
+                    {% else %}
+                      <span class="badge badge-nonpagato">Da saldare</span>
+                    {% endif %}
+                  </div>
+                  <div class="text-xs text-ink-400 font-mono">{{ l.date.strftime('%A') }} {{ l.date.day }} {{ l.date.strftime('%b %Y') }} · {{ l.time }}</div>
                 </div>
               </div>
               <form action="{{ url_for('delete_lesson', lesson_id=l.id) }}" method="POST"
@@ -412,8 +417,8 @@
             {% set cur.d = l.date %}
             <div class="px-4 py-2 bg-ink-50 border-b border-ink-100">
               <span class="text-xs font-bold text-ink-500 uppercase tracking-widest">
-                {% if l.date == today %}Oggi · {{ l.date.strftime('%-d %b %Y') }}
-                {% else %}{{ l.date.strftime('%A %-d %b %Y') }}
+                {% if l.date == today %}Oggi · {{ l.date.day }} {{ l.date.strftime('%b %Y') }}
+                {% else %}{{ l.date.strftime('%A') }} {{ l.date.day }} {{ l.date.strftime('%b %Y') }}
                 {% endif %}
               </span>
             </div>
@@ -444,23 +449,53 @@
       </div>
     {% endif %}
 
+
+  <!-- ══════════════════ CALENDARIO ══════════════════ -->
+  {% elif view == 'calendario' %}
+
+    <h1 class="font-bold text-ink-900 text-xl">Calendario lezioni</h1>
+
+    <div class="card p-4" id="fc-wrapper">
+      <div id="fullcalendar"></div>
+    </div>
+
+    <!-- Legenda studenti -->
+    {% if students %}
+      <div class="card p-4">
+        <h3 class="font-bold text-ink-900 mb-3 text-sm">Studenti</h3>
+        <div class="flex flex-wrap gap-2">
+          {% set palette = ['#438546','#2563eb','#d97706','#7c3aed','#0891b2','#db2777','#059669','#dc2626'] %}
+          {% for s in students %}
+            <div class="flex items-center gap-1.5">
+              <div class="w-3 h-3 rounded-full flex-shrink-0" style="background:{{ palette[loop.index0 % palette|length] }}"></div>
+              <span class="text-sm font-medium text-ink-700">{{ s.name }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
   {% endif %}
 
 </main>
 
 <!-- ── Bottom tab bar (mobile) ── -->
 <div class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-ink-100 flex sm:hidden z-40">
-  <a href="{{ url_for('index') }}"        class="flex-1 flex flex-col items-center py-3 gap-0.5 {% if view=='dashboard' %}text-ink-900{% else %}text-ink-400{% endif %}">
+  <a href="{{ url_for('index') }}"           class="flex-1 flex flex-col items-center py-3 gap-0.5 {% if view=='dashboard' %}text-ink-900{% else %}text-ink-400{% endif %}">
     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="{% if view=='dashboard' %}2.5{% else %}2{% endif %}" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
     <span class="text-[10px] font-bold">Riepilogo</span>
   </a>
-  <a href="{{ url_for('lessons_view') }}" class="flex-1 flex flex-col items-center py-3 gap-0.5 {% if view=='lessons' %}text-ink-900{% else %}text-ink-400{% endif %}">
+  <a href="{{ url_for('lessons_view') }}"    class="flex-1 flex flex-col items-center py-3 gap-0.5 {% if view=='lessons' %}text-ink-900{% else %}text-ink-400{% endif %}">
     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="{% if view=='lessons' %}2.5{% else %}2{% endif %}" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
     <span class="text-[10px] font-bold">Storico</span>
   </a>
-  <a href="{{ url_for('upcoming_view') }}" class="flex-1 flex flex-col items-center py-3 gap-0.5 {% if view=='upcoming' %}text-ink-900{% else %}text-ink-400{% endif %}">
+  <a href="{{ url_for('upcoming_view') }}"   class="flex-1 flex flex-col items-center py-3 gap-0.5 {% if view=='upcoming' %}text-ink-900{% else %}text-ink-400{% endif %}">
     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="{% if view=='upcoming' %}2.5{% else %}2{% endif %}" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
     <span class="text-[10px] font-bold">Prossime</span>
+  </a>
+  <a href="{{ url_for('calendario_view') }}" class="flex-1 flex flex-col items-center py-3 gap-0.5 {% if view=='calendario' %}text-ink-900{% else %}text-ink-400{% endif %}">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="{% if view=='calendario' %}2.5{% else %}2{% endif %}" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+    <span class="text-[10px] font-bold">Calendario</span>
   </a>
 </div>
 
@@ -498,7 +533,7 @@ async function azzeraContatore(id) {
     if (data.ok) {
       const totalEl = document.getElementById('total-' + id);
       if (totalEl) totalEl.textContent = 0;
-      mostraToast('Pagato — lezioni azzerate.', true);
+      mostraToast('Pagato — lezioni segnate come saldate.', true);
     } else {
       mostraToast(data.error || 'Errore durante il reset.', false);
     }
@@ -542,6 +577,43 @@ function validaGiorni(form) {
 document.addEventListener('DOMContentLoaded', () => {
   const plan = document.getElementById('s-plan');
   if (plan) aggiornaSelezioneGiorni(plan.value);
+
+  // ── FullCalendar ──────────────────────────────────────────────────────────
+  const fcEl = document.getElementById('fullcalendar');
+  if (!fcEl) return;
+
+  fetch('/api/lezioni')
+    .then(r => r.json())
+    .then(events => {
+      const calendar = new FullCalendar.Calendar(fcEl, {
+        initialView:    'timeGridWeek',
+        locale:         'it',
+        firstDay:       1,         // settimana parte da lunedì
+        nowIndicator:   true,
+        headerToolbar: {
+          left:   'prev,next today',
+          center: 'title',
+          right:  'timeGridWeek,timeGridDay',
+        },
+        buttonText: {
+          today: 'Oggi',
+          week:  'Settimana',
+          day:   'Giorno',
+        },
+        slotMinTime:    '07:00:00',
+        slotMaxTime:    '22:00:00',
+        allDaySlot:     false,
+        height:         'auto',
+        expandRows:     true,
+        events:         events,
+        eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+        slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+      });
+      calendar.render();
+    })
+    .catch(() => {
+      fcEl.innerHTML = '<p class="text-sm text-ink-400 text-center py-6">Errore nel caricamento del calendario.</p>';
+    });
 });
 </script>
 </body>
