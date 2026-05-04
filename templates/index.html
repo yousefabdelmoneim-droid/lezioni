@@ -7,7 +7,6 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <!-- FullCalendar CDN -->
   <link  href="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.11/index.global.min.css" rel="stylesheet"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.11/index.global.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.11/locales/it.global.min.js"></script>
@@ -81,7 +80,6 @@
 </head>
 <body>
 
-<!-- ── Toast notification ── -->
 <div id="toast">
   <div class="bg-ink-900 text-ink-50 px-5 py-3 rounded-xl shadow-2xl text-sm font-semibold flex items-center gap-2">
     <svg id="toast-icon" class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"></svg>
@@ -89,7 +87,6 @@
   </div>
 </div>
 
-<!-- ── Top nav ── -->
 <header class="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-ink-100">
   <div class="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
     <div class="flex items-center gap-2.5">
@@ -112,7 +109,6 @@
 
 <main class="max-w-2xl mx-auto px-4 py-6 space-y-5 pb-24">
 
-  <!-- Flash messages -->
   {% with msgs = get_flashed_messages(with_categories=true) %}
     {% if msgs %}
       <div class="space-y-2">
@@ -130,16 +126,13 @@
     {% endif %}
   {% endwith %}
 
-  <!-- ══════════════════ RIEPILOGO (dashboard) ══════════════════ -->
   {% if view == 'dashboard' %}
 
-    <!-- Schede studenti -->
     {% if students %}
       <div class="space-y-3">
         {% for s in students %}
           <div class="card p-4" id="card-{{ s.id }}">
 
-            <!-- Header studente -->
             <div class="flex items-start justify-between gap-3 mb-4">
               <div>
                 <h2 class="font-bold text-ink-900 text-lg leading-tight">{{ s.name }}</h2>
@@ -150,7 +143,6 @@
                   {% endif %}
                 </div>
               </div>
-              <!-- Pulsante lezione rapida -->
               <form action="{{ url_for('quick_add_lesson', student_id=s.id) }}" method="POST" class="flex-shrink-0">
                 <button type="submit" class="btn btn-green">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
@@ -159,7 +151,6 @@
               </form>
             </div>
 
-            <!-- Contatore lezioni non pagate -->
             <div class="mb-4">
               <div class="bg-ink-50 rounded-xl p-4 text-center">
                 <div class="stat-n" id="total-{{ s.id }}">{{ s.lessons_since_reset }}</div>
@@ -167,9 +158,7 @@
               </div>
             </div>
 
-            <!-- Azioni -->
             <div class="flex items-center gap-2 flex-wrap">
-              <!-- Reset AJAX -->
               <button
                 onclick="azzeraContatore({{ s.id }})"
                 class="btn btn-light"
@@ -200,7 +189,6 @@
       </div>
     {% endif %}
 
-    <!-- Form aggiungi studente -->
     <div class="card p-4">
       <h3 class="font-bold text-ink-900 mb-4 flex items-center gap-2">
         <svg class="w-4 h-4 text-ink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
@@ -250,7 +238,6 @@
       </form>
     </div>
 
-    <!-- Lezioni di questa settimana (preview) -->
     {% if recent_lessons %}
       <div class="card overflow-hidden">
         <div class="px-4 pt-4 pb-3 border-b border-ink-100 flex items-center justify-between">
@@ -283,12 +270,10 @@
     {% endif %}
 
 
-  <!-- ══════════════════ STORICO ══════════════════ -->
   {% elif view == 'lessons' %}
 
     <h1 class="font-bold text-ink-900 text-xl">Storico lezioni</h1>
 
-    <!-- Registra nuova lezione -->
     <div class="card p-4">
       <h3 class="font-bold text-ink-900 mb-4 flex items-center gap-2">
         <svg class="w-4 h-4 text-ink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
@@ -319,7 +304,6 @@
       {% endif %}
     </div>
 
-    <!-- Filtri -->
     <div class="flex items-center gap-2 flex-wrap">
       <a href="{{ url_for('lessons_view') }}?filter=all&student={{ student_filter }}"  class="pill {% if filter_mode=='all'  %}attivo{% endif %}">Tutto</a>
       <a href="{{ url_for('lessons_view') }}?filter=week&student={{ student_filter }}" class="pill {% if filter_mode=='week' %}attivo{% endif %}">Questa settimana</a>
@@ -334,7 +318,6 @@
       </div>
     </div>
 
-    <!-- Lista lezioni con badge pagato/non pagato -->
     {% if lessons %}
       <div class="card overflow-hidden">
         <div class="divide-y divide-ink-50">
@@ -372,12 +355,10 @@
     {% endif %}
 
 
-  <!-- ══════════════════ PROSSIME LEZIONI ══════════════════ -->
   {% elif view == 'upcoming' %}
 
     <h1 class="font-bold text-ink-900 text-xl">Prossime lezioni</h1>
 
-    <!-- Pianifica lezione -->
     <div class="card p-4">
       <h3 class="font-bold text-ink-900 mb-4 flex items-center gap-2">
         <svg class="w-4 h-4 text-ink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
@@ -408,7 +389,6 @@
       {% endif %}
     </div>
 
-    <!-- Lista prossime lezioni raggruppate per data -->
     {% if upcoming %}
       {% set cur = namespace(d=None) %}
       <div class="card overflow-hidden">
@@ -450,7 +430,6 @@
     {% endif %}
 
 
-  <!-- ══════════════════ CALENDARIO ══════════════════ -->
   {% elif view == 'calendario' %}
 
     <h1 class="font-bold text-ink-900 text-xl">Calendario lezioni</h1>
@@ -459,7 +438,6 @@
       <div id="fullcalendar"></div>
     </div>
 
-    <!-- Legenda studenti -->
     {% if students %}
       <div class="card p-4">
         <h3 class="font-bold text-ink-900 mb-3 text-sm">Studenti</h3>
@@ -479,7 +457,6 @@
 
 </main>
 
-<!-- ── Bottom tab bar (mobile) ── -->
 <div class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-ink-100 flex sm:hidden z-40">
   <a href="{{ url_for('index') }}"           class="flex-1 flex flex-col items-center py-3 gap-0.5 {% if view=='dashboard' %}text-ink-900{% else %}text-ink-400{% endif %}">
     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="{% if view=='dashboard' %}2.5{% else %}2{% endif %}" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
@@ -499,7 +476,6 @@
   </a>
 </div>
 
-<!-- ── JavaScript ── -->
 <script>
 // ── Toast notification ──────────────────────────────────────────────────────
 function mostraToast(msg, ok = true) {
@@ -590,30 +566,30 @@ document.addEventListener('DOMContentLoaded', () => {
         locale:         'it',
         firstDay:       1,         // settimana parte da lunedì
         nowIndicator:   true,
-        headerToolbar: {
-          left:   'prev,next today',
-          center: 'title',
-          right:  'timeGridWeek,timeGridDay',
-        },
-        buttonText: {
-          today: 'Oggi',
-          week:  'Settimana',
-          day:   'Giorno',
-        },
-        slotMinTime:    '07:00:00',
-        slotMaxTime:    '22:00:00',
-        allDaySlot:     false,
-        height:         'auto',
-        expandRows:     true,
         events:         events,
-        eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
-        slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+        headerToolbar: {
+          left: 'prev,next today',
+          center: 'title',
+          right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+        allDaySlot: false,
+        slotMinTime: '08:00:00', // Orari ragionevoli di default
+        slotMaxTime: '22:00:00',
+        eventContent: function(arg) {
+          // Custom styling for recurring vs real events
+          let italicEl = document.createElement('div');
+          italicEl.innerHTML = arg.event.title;
+          if (arg.event.extendedProps.type === 'recurring') {
+            italicEl.style.opacity = '0.7';
+            italicEl.style.borderStyle = 'dashed';
+          }
+          let arrayOfDomNodes = [ italicEl ];
+          return { domNodes: arrayOfDomNodes };
+        }
       });
       calendar.render();
     })
-    .catch(() => {
-      fcEl.innerHTML = '<p class="text-sm text-ink-400 text-center py-6">Errore nel caricamento del calendario.</p>';
-    });
+    .catch(err => console.error("Errore nel caricamento del calendario:", err));
 });
 </script>
 </body>
