@@ -12,14 +12,16 @@ from models import GIORNI_SETTIMANA, Lesson, Student, db
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DB_PATH  = os.path.join(BASE_DIR, "app.db")
 
+# PostgreSQL (Neon) via DATABASE_URL, fallback a SQLite in locale
+_db_url = os.environ.get("DATABASE_URL", f"sqlite:///{DB_PATH}")
+if _db_url.startswith("postgres://"):
+    _db_url = _db_url.replace("postgres://", "postgresql://", 1)
+
 app = Flask(__name__)
-app.config["SECRET_KEY"]                = os.environ.get("SECRET_KEY", "cambia-questa-chiave-in-produzione")
-app.config["SQLALCHEMY_DATABASE_URI"]   = f"sqlite:///{DB_PATH}"
+app.config["SECRET_KEY"]                     = os.environ.get("SECRET_KEY", "cambia-questa-chiave-in-produzione")
+app.config["SQLALCHEMY_DATABASE_URI"]        = _db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "connect_args": {"check_same_thread": False},
-    "pool_pre_ping": True,
-}
+app.config["SQLALCHEMY_ENGINE_OPTIONS"]      = {"pool_pre_ping": True}
 
 db.init_app(app)
 
