@@ -1,11 +1,19 @@
 import os
-from datetime import date, datetime, timedelta
+import sys
+from datetime import timedelta
+
+if sys.version_info >= (3, 9):
+    from zoneinfo import ZoneInfo
+else:
+    from backports.zoneinfo import ZoneInfo
+
+from datetime import datetime
 
 from flask import Flask, flash, jsonify, redirect, render_template, request, url_for
 from sqlalchemy import func, text
 from sqlalchemy.orm import subqueryload
 
-from models import GIORNI_SETTIMANA, Lesson, Student, db
+from models import GIORNI_SETTIMANA, Lesson, Student, db, oggi_rome, ROME
 
 # ── App factory ──────────────────────────────────────────────────────────────
 
@@ -31,10 +39,19 @@ def _migrate(app_ctx):
     with app_ctx:
         db.create_all()
         inspector = db.inspect(db.engine)
-        cols = [c["name"] for c in inspector.get_columns("students")]
-        if "lesson_days" not in cols:
+
+        # students: lesson_days
+        student_cols = [c["name"] for c in inspector.get_columns("students")]
+        if "lesson_days" not in student_cols:
             with db.engine.connect() as conn:
                 conn.execute(text("ALTER TABLE students ADD COLUMN lesson_days VARCHAR(200) DEFAULT ''"))
+                conn.commit()
+
+        # lessons: pagato (soft delete / payment flag)
+        lesson_cols = [c["name"] for c in inspector.get_columns("lessons")]
+        if "pagato" not in lesson_cols:
+            with db.engine.connect() as conn:
+                conn.execute(text("ALTER TABLE lessons ADD COLUMN pagato BOOLEAN NOT NULL DEFAULT 0"))
                 conn.commit()
 
 
@@ -44,7 +61,7 @@ _migrate(app.app_context())
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 def _week_bounds():
-    today      = date.today()
+    today      = oggi_rome()
     week_start = today - timedelta(days=today.weekday())
     week_end   = week_start + timedelta(days=6)
     return week_start, week_end
@@ -74,13 +91,18 @@ def _parse_days(form, weekly_plan):
     return ",".join(days), None
 
 
+def _fmt_date(d):
+    """Formatta data senza %-d (non portabile su Windows/Render)."""
+    return f"{d.day} {d.strftime('%b %Y')}"
+
+
 # ── Dashboard ────────────────────────────────────────────────────────────────
 
 @app.route("/")
 def index():
     students      = _all_students()
-    today         = date.today()
-    now_time      = datetime.now().strftime("%H:%M")
+    today         = oggi_rome()
+    now_time      = datetime.now(ROME).strftime("%H:%M")
     week_start, _ = _week_bounds()
 
     recent_lessons = (
@@ -136,7 +158,7 @@ def add_student():
             name=name,
             weekly_plan=weekly_plan,
             lesson_days=lesson_days or "",
-            last_reset_date=date.today(),
+            last_reset_date=oggi_rome(),
         )
         db.session.add(student)
         db.session.commit()
@@ -164,12 +186,13 @@ def delete_student(student_id):
 
 @app.route("/studenti/<int:student_id>/azzera", methods=["POST"])
 def reset_counter(student_id):
-    """AJAX endpoint — cancella tutte le lezioni dello studente (segna come pagato)."""
+    """AJAX endpoint — soft delete: segna tutte le lezioni come pagate."""
     student = Student.query.get_or_404(student_id)
     try:
-        Lesson.query.filter_by(student_id=student_id).delete()
+        Lesson.query.filter_by(student_id=student_id, pagato=False).update({"pagato": True})
+        student.last_reset_date = oggi_rome()
         db.session.commit()
-        return jsonify({"ok": True, "total": 0})
+        return jsonify({"ok": True, "total": 0, "da_saldare": 0})
     except Exception:
         db.session.rollback()
         return jsonify({"ok": False, "error": "Errore durante il reset."}), 500
@@ -190,6 +213,7 @@ def add_lesson():
     student  = Student.query.get_or_404(student_id)
 
     try:
+        from datetime import date as _date
         lesson_date = datetime.strptime(date_str, "%Y-%m-%d").date()
     except ValueError:
         flash("Formato data non valido.", "error")
@@ -205,7 +229,7 @@ def add_lesson():
         db.session.commit()
         flash(
             f'Lezione registrata per "{student.name}" il '
-            f'{lesson_date.strftime("%-d %b %Y")} alle {time_str}.',
+            f'{_fmt_date(lesson_date)} alle {time_str}.',
             "success",
         )
     except Exception:
@@ -218,7 +242,7 @@ def add_lesson():
 @app.route("/lezioni/rapida/<int:student_id>", methods=["POST"])
 def quick_add_lesson(student_id):
     student = Student.query.get_or_404(student_id)
-    now     = datetime.now()
+    now     = datetime.now(ROME)
     try:
         lesson = Lesson(student_id=student_id, date=now.date(), time=now.strftime("%H:%M"))
         db.session.add(lesson)
@@ -248,8 +272,8 @@ def delete_lesson(lesson_id):
 @app.route("/storico")
 def lessons_view():
     students       = _all_students()
-    today          = date.today()
-    now_time       = datetime.now().strftime("%H:%M")
+    today          = oggi_rome()
+    now_time       = datetime.now(ROME).strftime("%H:%M")
     week_start, _  = _week_bounds()
 
     filter_mode    = request.args.get("filter", "all")
@@ -286,12 +310,10 @@ def lessons_view():
 @app.route("/prossime")
 def upcoming_view():
     students = _all_students()
-    today    = date.today()
-    now_time = datetime.now().strftime("%H:%M")
-    now      = datetime.now()
+    today    = oggi_rome()
+    now_time = datetime.now(ROME).strftime("%H:%M")
+    now      = datetime.now(ROME)
 
-    # FIX: filtra per data+ora, non solo per data
-    # Una lezione alle 9:00 non resta in "Prossime" alle 22:00
     upcoming = (
         Lesson.query
         .join(Student)
@@ -312,6 +334,63 @@ def upcoming_view():
         giorni=GIORNI_SETTIMANA,
         view="upcoming",
     )
+
+
+# ── Calendar view ─────────────────────────────────────────────────────────────
+
+@app.route("/calendario")
+def calendario_view():
+    students = _all_students()
+    today    = oggi_rome()
+    now_time = datetime.now(ROME).strftime("%H:%M")
+
+    return render_template(
+        "index.html",
+        students=students,
+        today=today,
+        now_time=now_time,
+        giorni=GIORNI_SETTIMANA,
+        view="calendario",
+    )
+
+
+# ── API ───────────────────────────────────────────────────────────────────────
+
+# Palette colori per studenti (assegnata ciclicamente per id)
+_PALETTE = [
+    "#438546", "#2563eb", "#d97706", "#7c3aed",
+    "#0891b2", "#db2777", "#059669", "#dc2626",
+]
+
+@app.route("/api/lezioni")
+def api_lezioni():
+    lessons = (
+        Lesson.query
+        .join(Student)
+        .order_by(Lesson.date.asc(), Lesson.time.asc())
+        .all()
+    )
+    events = []
+    for l in lessons:
+        color = _PALETTE[l.student_id % len(_PALETTE)]
+        start_iso = f"{l.date.isoformat()}T{l.time}:00"
+        # durata default 1 ora
+        end_h = int(l.time[:2])
+        end_m = int(l.time[3:])
+        end_m += 60
+        end_h += end_m // 60
+        end_m = end_m % 60
+        end_iso = f"{l.date.isoformat()}T{end_h:02d}:{end_m:02d}:00"
+
+        events.append({
+            "id":       l.id,
+            "title":    l.student.name,
+            "start":    start_iso,
+            "end":      end_iso,
+            "color":    color,
+            "pagato":   l.pagato,
+        })
+    return jsonify(events)
 
 
 if __name__ == "__main__":
