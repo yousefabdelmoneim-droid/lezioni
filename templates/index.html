@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="it" class="h-full">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gestione Lezioni Private</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['DM Sans','sans-serif'], mono: ['DM Mono','monospace'] },
+          colors: {
+            ink:  { 50:'#f5f5f0',100:'#e8e8e0',200:'#d0d0c4',300:'#b0b09e',400:'#8a8a76',500:'#6e6e5a',600:'#585847',700:'#454538',800:'#32322a',900:'#1e1e18',950:'#101010' },
+            sage: { 50:'#f2f7f2',100:'#e0ece0',200:'#c2d9c3',300:'#96be98',400:'#64a067',500:'#438546',600:'#336935',700:'#29532b',800:'#224324' },
+            warm: { 50:'#fffbeb',100:'#fef3c7',200:'#fde68a',400:'#fbbf24',600:'#d97706',700:'#92400e' },
+            rose: { 50:'#fff1f2',100:'#ffe4e6',400:'#fb7185',500:'#f43f5e',600:'#e11d48' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family:'DM Sans',sans-serif; background:#f5f5f0; min-height:100vh; }
+    .card { background:#fff; border:1px solid #e8e8e0; border-radius:16px; }
+    .btn { display:inline-flex; align-items:center; gap:.4rem; font-weight:600; border-radius:10px; transition:all .15s ease; cursor:pointer; white-space:nowrap; }
+    .btn-dark  { background:#1e1e18; color:#f5f5f0; padding:.75rem 1.25rem; font-size:.875rem; }
+    .btn-dark:hover  { background:#32322a; transform:translateY(-1px); }
+    .btn-dark:active { transform:translateY(0); }
+    .btn-light { background:#f5f5f0; color:#1e1e18; border:1.5px solid #d0d0c4; padding:.6rem 1rem; font-size:.8rem; }
+    .btn-light:hover { background:#e8e8e0; }
+    .btn-green { background:#438546; color:#fff; padding:.6rem 1.1rem; font-size:.85rem; border-radius:9px; }
+    .btn-green:hover { background:#336935; transform:translateY(-1px); }
+    .btn-red   { background:#fff1f2; color:#e11d48; border:1px solid #ffe4e6; padding:.45rem .8rem; font-size:.78rem; border-radius:8px; }
+    .btn-red:hover { background:#ffe4e6; }
+    .nav-item { padding:.45rem .85rem; border-radius:8px; font-weight:500; font-size:.85rem; color:#6e6e5a; transition:all .15s; }
+    .nav-item:hover  { background:#e8e8e0; color:#1e1e18; }
+    .nav-item.attivo { background:#1e1e18; color:#f5f5f0; }
+    .ctrl { width:100%; background:#f5f5f0; border:1.5px solid #d0d0c4; border-radius:8px; padding:.65rem .85rem; font-size:.875rem; color:#1e1e18; outline:none; font-family:'DM Sans',sans-serif; transition:border-color .15s; }
+    .ctrl:focus { border-color:#1e1e18; background:#fff; }
+    .lbl { display:block; font-weight:600; font-size:.72rem; color:#8a8a76; text-transform:uppercase; letter-spacing:.06em; margin-bottom:.3rem; }
+    .badge { display:inline-flex; align-items:center; padding:.18rem .55rem; border-radius:99px; font-size:.72rem; font-weight:700; }
+    .badge-ok     { background:#e0ece0; color:#29532b; }
+    .badge-warn   { background:#fef3c7; color:#92400e; }
+    .badge-grey   { background:#e8e8e0; color:#454538; }
+    .flash-success { background:#e0ece0; border:1px solid #c2d9c3; color:#29532b; padding:.75rem 1rem; border-radius:10px; font-size:.875rem; font-weight:500; }
+    .flash-error   { background:#fff1f2; border:1px solid #ffe4e6; color:#e11d48;  padding:.75rem 1rem; border-radius:10px; font-size:.875rem; font-weight:500; }
+    .stat-n { font-size:1.85rem; font-weight:700; color:#1e1e18; line-height:1; }
+    .stat-l { font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; color:#8a8a76; font-weight:600; margin-top:.15rem; }
+    .pill { padding:.35rem .9rem; border-radius:99px; font-size:.78rem; font-weight:600; border:1.5px solid #d0d0c4; color:#6e6e5a; background:#fff; transition:all .15s; cursor:pointer; }
+    .pill.attivo, .pill:hover { background:#1e1e18; color:#f5f5f0; border-color:#1e1e18; }
+    .tr:hover { background:#f5f5f0; }
+    #toast { position:fixed; bottom:5rem; left:50%; transform:translateX(-50%) translateY(20px); z-index:9999; opacity:0; transition:all .3s ease; pointer-events:none; }
+    #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+    @media(max-width:640px) { .hide-sm { display:none!important; } }
+  </style>
+</head>
+<body>
+
+<!-- ── Toast notification ── -->
+<div id="toast">
+  <div class="bg-ink-900 text-ink-50 px-5 py-3 rounded-xl shadow-2xl text-sm font-semibold flex items-center gap-2">
+    <svg id="toast-icon" class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"></svg>
+    <span id="toast-msg"></span>
+  </div>
+</div>
+
+<!-- ── Top nav ── -->
+<header class="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-ink-100">
+  <div class="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+    <div class="flex items-center gap-2.5">
+      <div class="w-7 h-7 bg-ink-900 rounded-lg flex items-center justify-center">
+        <svg class="w-4 h-4 text-ink-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+        </svg>
+      </div>
+      <span class="font-bold text-ink-900 text-base tracking-tight">Lezioni Private</span>
+    </div>
+    <nav class="flex items-center gap-1">
+      <a href="{{ url_for('index') }}"        class="nav-item {% if view=='dashboard' %}attivo{% endif %}">Riepilogo</a>
+      <a href="{{ url_for('lessons_view') }}" class="nav-item {% if view=='lessons' %}attivo{% endif %}">Storico</a>
+      <a href="{{ url_for('upcoming_view') }}" class="nav-item hide-sm {% if view=='upcoming' %}attivo{% endif %}">Prossime</a>
+    </nav>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-4 py-6 space-y-5 pb-24">
+
+  <!-- Flash messages -->
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% if msgs %}
+      <div class="space-y-2">
+        {% for cat, msg in msgs %}
+          <div class="flash-{{ cat }} flex items-start gap-2">
+            {% if cat == 'success' %}
+              <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+            {% else %}
+              <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            {% endif %}
+            {{ msg }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <!-- ══════════════════ RIEPILOGO (dashboard) ══════════════════ -->
+  {% if view == 'dashboard' %}
+
+    <!-- Warning bar: studenti in ritardo -->
+    {% set ritardo = students | selectattr('weekly_warning') | list %}
+    {% if ritardo %}
+      <div style="background:linear-gradient(135deg,#fffbeb,#fff7d6);border:1.5px solid #fde68a;" class="rounded-xl p-4">
+        <div class="flex items-center gap-2 mb-3">
+          <svg class="w-4 h-4 text-warm-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+          <span class="text-sm font-bold text-warm-700">In ritardo questa settimana</span>
+        </div>
+        <div class="space-y-2">
+          {% for s in ritardo %}
+            <div class="flex items-center justify-between bg-white/70 rounded-lg px-3 py-2">
+              <span class="font-semibold text-ink-800 text-sm">{{ s.name }}</span>
+              <span class="font-mono text-xs font-bold text-warm-700">{{ s.lessons_this_week }}/{{ s.weekly_plan }} questa settimana</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    <!-- Schede studenti -->
+    {% if students %}
+      <div class="space-y-3">
+        {% for s in students %}
+          <div class="card p-4" id="card-{{ s.id }}">
+
+            <!-- Header studente -->
+            <div class="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <h2 class="font-bold text-ink-900 text-lg leading-tight">{{ s.name }}</h2>
+                <div class="flex items-center gap-2 mt-1 flex-wrap">
+                  <span class="badge badge-grey">{{ s.weekly_plan }}×/sett.</span>
+                  {% if s.lesson_days_list %}
+                    <span class="badge badge-grey font-mono text-ink-500">{{ s.lesson_days_list | join(' · ') }}</span>
+                  {% endif %}
+                  {% if s.weekly_warning %}
+                    <span class="badge badge-warn">⚠ In ritardo</span>
+                  {% else %}
+                    <span class="badge badge-ok">✓ In regola</span>
+                  {% endif %}
+                </div>
+              </div>
+              <!-- Pulsante lezione rapida -->
+              <form action="{{ url_for('quick_add_lesson', student_id=s.id) }}" method="POST" class="flex-shrink-0">
+                <button type="submit" class="btn btn-green">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                  Adesso
+                </button>
+              </form>
+            </div>
+
+            <!-- Contatore totale lezioni -->
+            <div class="mb-4">
+              <div class="bg-ink-50 rounded-xl p-4 text-center">
+                <div class="stat-n" id="total-{{ s.id }}">{{ s.lessons | length }}</div>
+                <div class="stat-l">Lezioni totali</div>
+              </div>
+            </div>
+
+            <!-- Azioni -->
+            <div class="flex items-center gap-2 flex-wrap">
+              <!-- Reset AJAX -->
+              <button
+                onclick="azzeraContatore({{ s.id }})"
+                class="btn btn-light"
+                id="btn-reset-{{ s.id }}">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                Pagato
+              </button>
+              <div class="ml-auto">
+                <!-- FIX XSS: nomi con apostrofo (D'Amico) non rompono il JS -->
+                <form action="{{ url_for('delete_student', student_id=s.id) }}" method="POST"
+                      data-nome="{{ s.name | e }}"
+                      onsubmit="return confirm('Eliminare ' + this.dataset.nome + ' e tutte le sue lezioni?')">
+                  <button type="submit" class="btn btn-red">Elimina</button>
+                </form>
+              </div>
+            </div>
+
+          </div>
+        {% endfor %}
+      </div>
+
+    {% else %}
+      <div class="card p-12 text-center">
+        <div class="w-14 h-14 bg-ink-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <svg class="w-7 h-7 text-ink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </div>
+        <h3 class="font-semibold text-ink-700 mb-1">Nessuno studente</h3>
+        <p class="text-sm text-ink-400">Aggiungi il tuo primo studente qui sotto.</p>
+      </div>
+    {% endif %}
+
+    <!-- Form aggiungi studente -->
+    <div class="card p-4">
+      <h3 class="font-bold text-ink-900 mb-4 flex items-center gap-2">
+        <svg class="w-4 h-4 text-ink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+        Aggiungi studente
+      </h3>
+      <form action="{{ url_for('add_student') }}" method="POST"
+            class="space-y-4" onsubmit="return validaGiorni(this)">
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="lbl" for="s-name">Nome studente</label>
+            <input class="ctrl" type="text" id="s-name" name="name" placeholder="es. Marco" required autocomplete="off"/>
+          </div>
+          <div>
+            <label class="lbl" for="s-plan">Lezioni a settimana</label>
+            <select class="ctrl" id="s-plan" name="weekly_plan" onchange="aggiornaSelezioneGiorni(this.value)">
+              <option value="1">1 lezione</option>
+              <option value="2">2 lezioni</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="lbl" for="s-day1">Giorno della lezione</label>
+          <select class="ctrl" id="s-day1" name="lesson_day_1">
+            <option value="">— Seleziona giorno —</option>
+            {% for g in giorni %}
+              <option value="{{ g }}">{{ g }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div id="day2-block" class="hidden">
+          <label class="lbl" for="s-day2">Secondo giorno della lezione</label>
+          <select class="ctrl" id="s-day2" name="lesson_day_2">
+            <option value="">— Seleziona giorno —</option>
+            {% for g in giorni %}
+              <option value="{{ g }}">{{ g }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <button type="submit" class="btn btn-dark w-full justify-center">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+          Aggiungi studente
+        </button>
+      </form>
+    </div>
+
+    <!-- Lezioni di questa settimana (preview) -->
+    {% if recent_lessons %}
+      <div class="card overflow-hidden">
+        <div class="px-4 pt-4 pb-3 border-b border-ink-100 flex items-center justify-between">
+          <h3 class="font-bold text-ink-900 flex items-center gap-2">
+            <svg class="w-4 h-4 text-ink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            Lezioni di questa settimana
+          </h3>
+          <a href="{{ url_for('lessons_view') }}?filter=week" class="text-xs text-ink-400 hover:text-ink-700 font-semibold">Vedi tutte →</a>
+        </div>
+        <div class="divide-y divide-ink-50">
+          {% for l in recent_lessons %}
+            <div class="tr flex items-center justify-between px-4 py-2.5 gap-3">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-ink-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <span class="text-xs font-bold text-ink-600">{{ l.student.name[0].upper() }}</span>
+                </div>
+                <div>
+                  <div class="font-semibold text-ink-800 text-sm">{{ l.student.name }}</div>
+                  <div class="text-xs text-ink-400 font-mono">{{ l.date.strftime('%a %-d %b') }} · {{ l.time }}</div>
+                </div>
+              </div>
+              <form action="{{ url_for('delete_lesson', lesson_id=l.id) }}" method="POST"
+                    onsubmit="return confirm('Eliminare questa lezione?')">
+                <button type="submit" class="btn btn-red px-2.5 py-1 text-xs">✕</button>
+              </form>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+
+  <!-- ══════════════════ STORICO ══════════════════ -->
+  {% elif view == 'lessons' %}
+
+    <h1 class="font-bold text-ink-900 text-xl">Storico lezioni</h1>
+
+    <!-- Registra nuova lezione -->
+    <div class="card p-4">
+      <h3 class="font-bold text-ink-900 mb-4 flex items-center gap-2">
+        <svg class="w-4 h-4 text-ink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Registra lezione
+      </h3>
+      {% if students %}
+        <form action="{{ url_for('add_lesson') }}" method="POST" class="space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div class="col-span-2 sm:col-span-1">
+              <label class="lbl" for="l-student">Studente</label>
+              <select class="ctrl" id="l-student" name="student_id" required>
+                {% for s in students %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="lbl" for="l-date">Data</label>
+              <input class="ctrl" type="date" id="l-date" name="date" value="{{ today.strftime('%Y-%m-%d') }}" required/>
+            </div>
+            <div>
+              <label class="lbl" for="l-time">Orario</label>
+              <input class="ctrl" type="time" id="l-time" name="time" value="{{ now_time }}" required/>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-dark w-full justify-center">Registra lezione</button>
+        </form>
+      {% else %}
+        <p class="text-sm text-ink-400 text-center py-2">Aggiungi prima uno studente dal Riepilogo.</p>
+      {% endif %}
+    </div>
+
+    <!-- Filtri -->
+    <div class="flex items-center gap-2 flex-wrap">
+      <a href="{{ url_for('lessons_view') }}?filter=all&student={{ student_filter }}"  class="pill {% if filter_mode=='all'  %}attivo{% endif %}">Tutto</a>
+      <a href="{{ url_for('lessons_view') }}?filter=week&student={{ student_filter }}" class="pill {% if filter_mode=='week' %}attivo{% endif %}">Questa settimana</a>
+      <div class="ml-auto">
+        <select class="ctrl" style="width:auto;padding:.4rem .75rem;font-size:.8rem;"
+          onchange="location.href='{{ url_for('lessons_view') }}?filter={{ filter_mode }}&student=' + this.value">
+          <option value="all" {% if student_filter=='all' %}selected{% endif %}>Tutti gli studenti</option>
+          {% for s in students %}
+            <option value="{{ s.id }}" {% if student_filter==s.id|string %}selected{% endif %}>{{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <!-- Lista lezioni -->
+    {% if lessons %}
+      <div class="card overflow-hidden">
+        <div class="divide-y divide-ink-50">
+          {% for l in lessons %}
+            <div class="tr flex items-center justify-between px-4 py-3 gap-3">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 bg-ink-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <span class="text-sm font-bold text-ink-600">{{ l.student.name[0].upper() }}</span>
+                </div>
+                <div>
+                  <div class="font-semibold text-ink-800 text-sm">{{ l.student.name }}</div>
+                  <div class="text-xs text-ink-400 font-mono">{{ l.date.strftime('%A %-d %b %Y') }} · {{ l.time }}</div>
+                </div>
+              </div>
+              <form action="{{ url_for('delete_lesson', lesson_id=l.id) }}" method="POST"
+                    onsubmit="return confirm('Eliminare questa lezione?')">
+                <button type="submit" class="btn btn-red">✕</button>
+              </form>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      <p class="text-xs text-center text-ink-400">{{ lessons|length }} lezione{% if lessons|length != 1 %}i{% endif %}</p>
+    {% else %}
+      <div class="card p-10 text-center">
+        <p class="text-sm text-ink-400">Nessuna lezione trovata per i filtri selezionati.</p>
+      </div>
+    {% endif %}
+
+
+  <!-- ══════════════════ PROSSIME LEZIONI ══════════════════ -->
+  {% elif view == 'upcoming' %}
+
+    <h1 class="font-bold text-ink-900 text-xl">Prossime lezioni</h1>
+
+    <!-- Pianifica lezione -->
+    <div class="card p-4">
+      <h3 class="font-bold text-ink-900 mb-4 flex items-center gap-2">
+        <svg class="w-4 h-4 text-ink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        Pianifica lezione
+      </h3>
+      {% if students %}
+        <form action="{{ url_for('add_lesson') }}" method="POST" class="space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div class="col-span-2 sm:col-span-1">
+              <label class="lbl" for="u-student">Studente</label>
+              <select class="ctrl" id="u-student" name="student_id" required>
+                {% for s in students %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="lbl" for="u-date">Data</label>
+              <input class="ctrl" type="date" id="u-date" name="date" value="{{ today.strftime('%Y-%m-%d') }}" required/>
+            </div>
+            <div>
+              <label class="lbl" for="u-time">Orario</label>
+              <input class="ctrl" type="time" id="u-time" name="time" value="{{ now_time }}" required/>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-dark w-full justify-center">Pianifica</button>
+        </form>
+      {% else %}
+        <p class="text-sm text-ink-400 text-center py-2">Aggiungi prima uno studente dal Riepilogo.</p>
+      {% endif %}
+    </div>
+
+    <!-- Lista prossime lezioni raggruppate per data -->
+    {% if upcoming %}
+      {% set cur = namespace(d=None) %}
+      <div class="card overflow-hidden">
+        {% for l in upcoming %}
+          {% if l.date != cur.d %}
+            {% set cur.d = l.date %}
+            <div class="px-4 py-2 bg-ink-50 border-b border-ink-100">
+              <span class="text-xs font-bold text-ink-500 uppercase tracking-widest">
+                {% if l.date == today %}Oggi · {{ l.date.strftime('%-d %b %Y') }}
+                {% else %}{{ l.date.strftime('%A %-d %b %Y') }}
+                {% endif %}
+              </span>
+            </div>
+          {% endif %}
+          <div class="tr flex items-center justify-between px-4 py-3 gap-3 border-b border-ink-50">
+            <div class="flex items-center gap-3">
+              <span class="font-mono text-sm font-bold text-ink-700 w-12 flex-shrink-0">{{ l.time }}</span>
+              <div class="w-px h-5 bg-ink-200"></div>
+              <div class="w-8 h-8 bg-sage-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <span class="text-xs font-bold text-sage-700">{{ l.student.name[0].upper() }}</span>
+              </div>
+              <span class="font-semibold text-ink-800 text-sm">{{ l.student.name }}</span>
+            </div>
+            <form action="{{ url_for('delete_lesson', lesson_id=l.id) }}" method="POST"
+                  onsubmit="return confirm('Eliminare questa lezione?')">
+              <button type="submit" class="btn btn-red">✕</button>
+            </form>
+          </div>
+        {% endfor %}
+      </div>
+      <p class="text-xs text-center text-ink-400">{{ upcoming|length }} lezione{% if upcoming|length != 1 %}i{% endif %} in programma</p>
+    {% else %}
+      <div class="card p-10 text-center">
+        <div class="w-12 h-12 bg-ink-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+          <svg class="w-6 h-6 text-ink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        </div>
+        <p class="text-sm text-ink-400">Nessuna lezione in programma.</p>
+      </div>
+    {% endif %}
+
+  {% endif %}
+
+</main>
+
+<!-- ── Bottom tab bar (mobile) ── -->
+<div class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-ink-100 flex sm:hidden z-40">
+  <a href="{{ url_for('index') }}"        class="flex-1 flex flex-col items-center py-3 gap-0.5 {% if view=='dashboard' %}text-ink-900{% else %}text-ink-400{% endif %}">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="{% if view=='dashboard' %}2.5{% else %}2{% endif %}" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+    <span class="text-[10px] font-bold">Riepilogo</span>
+  </a>
+  <a href="{{ url_for('lessons_view') }}" class="flex-1 flex flex-col items-center py-3 gap-0.5 {% if view=='lessons' %}text-ink-900{% else %}text-ink-400{% endif %}">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="{% if view=='lessons' %}2.5{% else %}2{% endif %}" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+    <span class="text-[10px] font-bold">Storico</span>
+  </a>
+  <a href="{{ url_for('upcoming_view') }}" class="flex-1 flex flex-col items-center py-3 gap-0.5 {% if view=='upcoming' %}text-ink-900{% else %}text-ink-400{% endif %}">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="{% if view=='upcoming' %}2.5{% else %}2{% endif %}" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+    <span class="text-[10px] font-bold">Prossime</span>
+  </a>
+</div>
+
+<!-- ── JavaScript ── -->
+<script>
+// ── Toast notification ──────────────────────────────────────────────────────
+function mostraToast(msg, ok = true) {
+  const t    = document.getElementById('toast');
+  const icon = document.getElementById('toast-icon');
+  const txt  = document.getElementById('toast-msg');
+  txt.textContent = msg;
+  icon.innerHTML = ok
+    ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>'
+    : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>';
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── Reset contatore (AJAX) ──────────────────────────────────────────────────
+async function azzeraContatore(id) {
+  if (!confirm('Segnare come pagato e azzerare le lezioni?')) return;
+
+  const btn = document.getElementById('btn-reset-' + id);
+  btn.disabled = true;
+  btn.style.opacity = '0.5';
+
+  try {
+    const res = await fetch('/studenti/' + id + '/azzera', {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    });
+    const data = await res.json();
+
+    if (data.ok) {
+      const totalEl = document.getElementById('total-' + id);
+      if (totalEl) totalEl.textContent = 0;
+      mostraToast('Pagato — lezioni azzerate.', true);
+    } else {
+      mostraToast(data.error || 'Errore durante il reset.', false);
+    }
+  } catch (e) {
+    mostraToast('Errore di rete. Riprova.', false);
+  } finally {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+  }
+}
+
+// ── Selezione giorni lezione (dinamica) ─────────────────────────────────────
+function aggiornaSelezioneGiorni(valore) {
+  const block = document.getElementById('day2-block');
+  const sel2  = document.getElementById('s-day2');
+  if (!block) return;
+
+  if (valore === '2') {
+    block.classList.remove('hidden');
+    sel2.required = true;
+  } else {
+    block.classList.add('hidden');
+    sel2.required = false;
+    sel2.value = '';
+  }
+}
+
+function validaGiorni(form) {
+  const plan = document.getElementById('s-plan');
+  const d1   = document.getElementById('s-day1');
+  const d2   = document.getElementById('s-day2');
+  if (!plan || !d1 || !d2) return true;
+
+  if (plan.value === '2' && d1.value && d2.value && d1.value === d2.value) {
+    alert('Scegli due giorni diversi per le lezioni settimanali.');
+    return false;
+  }
+  return true;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const plan = document.getElementById('s-plan');
+  if (plan) aggiornaSelezioneGiorni(plan.value);
+});
+</script>
+</body>
+</html>
