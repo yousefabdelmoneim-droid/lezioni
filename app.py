@@ -1,15 +1,17 @@
 import os
 import sys
 from datetime import timedelta
+
 if sys.version_info >= (3, 9):
     from zoneinfo import ZoneInfo
 else:
     from backports.zoneinfo import ZoneInfo
+
 from datetime import datetime
 from flask import Flask, flash, jsonify, redirect, render_template, request, url_for
 from sqlalchemy import func, text
 from sqlalchemy.orm import subqueryload
-from models import GIORNI_SETTIMANA, Lesson, Student, db, oggi_rome, ROME
+from models import GIORNI_SETTIMANA, GIORNI_WEEKDAY, Lesson, Student, db, oggi_rome, ROME
 
 # ── App factory ──────────────────────────────────────────────────────────────
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -29,19 +31,16 @@ db.init_app(app)
 
 
 def _migrate(app_ctx):
-    """Non-destructive schema migration: add columns that may be missing."""
     with app_ctx:
         db.create_all()
         inspector = db.inspect(db.engine)
 
-        # students: lesson_days
         student_cols = [c["name"] for c in inspector.get_columns("students")]
         if "lesson_days" not in student_cols:
             with db.engine.connect() as conn:
                 conn.execute(text("ALTER TABLE students ADD COLUMN lesson_days VARCHAR(200) DEFAULT ''"))
                 conn.commit()
 
-        # lessons: pagato
         lesson_cols = [c["name"] for c in inspector.get_columns("lessons")]
         if "pagato" not in lesson_cols:
             with db.engine.connect() as conn:
@@ -71,16 +70,23 @@ def _all_students():
 
 
 def _parse_days(form, weekly_plan):
-    day1 = form.get("lesson_day_1", "").strip()
-    day2 = form.get("lesson_day_2", "").strip()
-    days = []
-    if day1 in GIORNI_SETTIMANA:
-        days.append(day1)
-    if weekly_plan == 2 and day2 in GIORNI_SETTIMANA:
+    """Estrae giorni+orari dal form. Formato salvato: 'Lunedì:18:00,Venerdì:20:00'"""
+    day1  = form.get("lesson_day_1", "").strip()
+    time1 = form.get("lesson_time_1", "").strip()
+    day2  = form.get("lesson_day_2", "").strip()
+    time2 = form.get("lesson_time_2", "").strip()
+
+    entries = []
+
+    if day1 in GIORNI_SETTIMANA and time1:
+        entries.append(f"{day1}:{time1}")
+
+    if weekly_plan == 2 and day2 in GIORNI_SETTIMANA and time2:
         if day2 == day1:
             return None, "Scegli due giorni diversi per le lezioni settimanali."
-        days.append(day2)
-    return ",".join(days), None
+        entries.append(f"{day2}:{time2}")
+
+    return ",".join(entries), None
 
 
 def _fmt_date(d):
@@ -351,32 +357,61 @@ _PALETTE = [
     "#0891b2", "#db2777", "#059669", "#dc2626",
 ]
 
+
 @app.route("/api/lezioni")
 def api_lezioni():
-    lessons = (
-        Lesson.query
-        .join(Student)
-        .order_by(Lesson.date.asc(), Lesson.time.asc())
-        .all()
-    )
-    events = []
+    students = _all_students()
+    events   = []
+
+    # 1. Lezioni reali salvate nel DB
+    lessons = Lesson.query.join(Student).order_by(Lesson.date.asc(), Lesson.time.asc()).all()
     for l in lessons:
-        color = _PALETTE[l.student_id % len(_PALETTE)]
+        color     = _PALETTE[l.student_id % len(_PALETTE)]
         start_iso = f"{l.date.isoformat()}T{l.time}:00"
-        end_h = int(l.time[:2])
-        end_m = int(l.time[3:])
-        end_m += 60
-        end_h += end_m // 60
-        end_m = end_m % 60
-        end_iso = f"{l.date.isoformat()}T{end_h:02d}:{end_m:02d}:00"
+        end_h     = int(l.time[:2])
+        end_m     = int(l.time[3:]) + 60
+        end_h    += end_m // 60
+        end_m     = end_m % 60
+        end_iso   = f"{l.date.isoformat()}T{end_h:02d}:{end_m:02d}:00"
+
         events.append({
-            "id":     l.id,
-            "title":  l.student.name,
-            "start":  start_iso,
-            "end":    end_iso,
-            "color":  color,
-            "pagato": l.pagato,
+            "id":       f"real_{l.id}",
+            "title":    l.student.name,
+            "start":    start_iso,
+            "end":      end_iso,
+            "color":    color,
+            "pagato":   l.pagato,
+            "type":     "real",
         })
+
+    # 2. Lezioni ricorrenti future (generate dinamicamente, non salvate nel DB)
+    # Raccoglie le date già presenti nel DB per evitare duplicati
+    real_dates = {(l.student_id, l.date.isoformat(), l.time) for l in lessons}
+
+    for student in students:
+        color = _PALETTE[student.id % len(_PALETTE)]
+        for ev in student.upcoming_recurring(weeks=8):
+            key = (ev["student_id"], ev["date"].isoformat(), ev["time"])
+            if key in real_dates:
+                continue  # già esiste come lezione reale, non duplicare
+
+            start_iso = f"{ev['date'].isoformat()}T{ev['time']}:00"
+            end_h     = int(ev["time"][:2])
+            end_m     = int(ev["time"][3:]) + 60
+            end_h    += end_m // 60
+            end_m     = end_m % 60
+            end_iso   = f"{ev['date'].isoformat()}T{end_h:02d}:{end_m:02d}:00"
+
+            events.append({
+                "id":     f"rec_{ev['student_id']}_{ev['date'].isoformat()}_{ev['time']}",
+                "title":  ev["student_name"],
+                "start":  start_iso,
+                "end":    end_iso,
+                "color":  color,
+                "pagato": None,
+                "type":   "recurring",
+            })
+
     return jsonify(events)
 
 
