@@ -30,9 +30,10 @@ def _migrate(app_ctx):
     """Non-destructive schema migration: add columns that may be missing."""
     with app_ctx:
         db.create_all()
-        with db.engine.connect() as conn:
-            cols = [row[1] for row in conn.execute(text("PRAGMA table_info(students)")).fetchall()]
-            if "lesson_days" not in cols:
+        inspector = db.inspect(db.engine)
+        cols = [c["name"] for c in inspector.get_columns("students")]
+        if "lesson_days" not in cols:
+            with db.engine.connect() as conn:
                 conn.execute(text("ALTER TABLE students ADD COLUMN lesson_days VARCHAR(200) DEFAULT ''"))
                 conn.commit()
 
