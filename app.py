@@ -332,6 +332,13 @@ def upcoming_view():
     )
 
 
+# ── Health check (per keep-alive ping di UptimeRobot/cron-job) ────────────────
+
+@app.route("/health")
+def health():
+    return "ok", 200
+
+
 # ── Calendar view ─────────────────────────────────────────────────────────────
 
 @app.route("/calendario")
