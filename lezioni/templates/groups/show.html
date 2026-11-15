@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% block title %}{{ group.name }}{% endblock %}
+{% block mobile_title %}{{ group.name }}{% endblock %}
+{% block content %}
+<div class="crumbs"><a href="{{ url_for('groups.index') }}">{{ _('nav_groups') }}</a> / {{ group.name }}</div>
+<div class="page-head">
+  <span class="avatar avatar-lg" style="background:{{ group.color }};color:#fff">{{ m.icon('layers') }}</span>
+  <div class="grow">
+    <h1>{{ group.name }}</h1>
+    <p>{{ [group.subject, group.level]|select|join(' · ') or '' }} {% if not group.active %}<span class="badge">{{ _('archived') }}</span>{% endif %}</p>
+  </div>
+  <a class="btn btn-secondary" href="{{ url_for('groups.edit', group_id=group.id) }}">{{ m.icon('edit', 'icon-sm') }} {{ _('edit') }}</a>
+  <a class="btn btn-secondary" href="{{ url_for('reports.group_report', group_id=group.id) }}" target="_blank" rel="noopener">{{ m.icon('file', 'icon-sm') }} {{ _('pdf_report') }}</a>
+  <a class="btn btn-primary" href="{{ url_for('lessons.new', target='group', group_id=group.id, duration_min=group.default_duration_min) }}">{{ m.icon('plus', 'icon-sm') }} {{ _('new_lesson') }}</a>
+</div>
+
+<div class="grid grid-main">
+  <div class="stack">
+    <section class="card">
+      <div class="card-head"><h2>{{ _('members') }}</h2><span class="badge">{{ members|length }}</span></div>
+      {% if members %}
+      <ul class="list">
+        {% for s in members %}{% set a = accounts[s.id] %}
+        <li>
+          {{ m.avatar(s) }}
+          <div class="grow"><a class="strong" style="color:inherit" href="{{ url_for('students.show', student_id=s.id) }}">{{ s.name }}</a>
+            <div class="row" style="gap:.25rem;margin-top:.15rem">{{ m.balance_badge(a, s) }}</div></div>
+          {{ m.post_button(url_for('groups.remove_member', member_id=current[s.id].id), '', 'btn btn-ghost btn-sm', _('confirm_remove_member', name=s.name), 'x', {}, _('remove_from_group')) }}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<div class="card-body muted small">{{ _('no_members_yet') }}</div>{% endif %}
+      {% if candidates %}
+      <details class="card-foot">
+        <summary class="btn btn-ghost btn-sm">{{ m.icon('plus', 'icon-sm') }} {{ _('add_members') }}</summary>
+        <form method="post" action="{{ url_for('groups.add_members', group_id=group.id) }}" style="margin-top:.6rem">
+          {{ m.csrf() }}
+          <div class="row" style="max-height:240px;overflow:auto;align-items:flex-start">
+            {% for s in candidates %}<label class="check badge" style="padding:.35rem .7rem"><input type="checkbox" name="student_ids" value="{{ s.id }}"> {{ s.name }}</label>{% endfor %}
+          </div>
+          <div class="form-actions"><button class="btn btn-primary btn-sm" type="submit">{{ _('add_selected') }}</button></div>
+        </form>
+      </details>
+      {% endif %}
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>{{ _('lesson_history') }}</h2></div>
+      {% if lessons %}
+      <ul class="list">
+        {% for l in lessons %}
+        <li><span class="time-chip">{{ l.time }}</span>
+          <div class="grow"><a href="{{ url_for('lessons.show', lesson_id=l.id) }}" class="strong">{{ l.date|fdate }}</a>
+            <div class="meta">{{ l.title or (l.topics|truncate(90) if l.topics else '') }}</div></div>
+          <span class="row" style="gap:.25rem">{{ m.lesson_status(l) }}</span></li>
+        {% endfor %}
+      </ul>
+      {% else %}<div class="card-body muted small">{{ _('no_lessons_yet') }}</div>{% endif %}
+    </section>
+  </div>
+
+  <div class="stack">
+    <section class="card">
+      <div class="card-head"><h2>{{ _('weekly_schedule') }}</h2></div>
+      <div class="card-body">
+        {% if slots %}
+        <ul class="list" style="border:1px solid var(--border);border-radius:12px;margin-bottom:.8rem">
+          {% for sl in slots %}
+          <li><span class="time-chip">{{ sl.start_time }}</span><div class="grow">{{ weekday_name(sl.weekday) }}<div class="meta">{{ _('n_minutes', n=sl.duration_min) }}</div></div>
+            {{ m.post_button(url_for('lessons.end_slot', slot_id=sl.id), '', 'btn btn-ghost btn-sm', _('confirm_end_slot'), 'x', {'next': request.full_path}, _('end_slot')) }}</li>
+          {% endfor %}
+        </ul>
+        {% else %}<p class="muted small">{{ _('no_slots_yet') }}</p>{% endif %}
+        <form method="post" action="{{ url_for('lessons.add_slot') }}" class="stack" style="gap:.6rem">
+          {{ m.csrf() }}<input type="hidden" name="group_id" value="{{ group.id }}"><input type="hidden" name="next" value="{{ request.full_path }}">
+          <div class="row" style="flex-wrap:nowrap">
+            <select class="select" name="weekday" aria-label="{{ _('weekday') }}">{% for i in range(7) %}<option value="{{ i }}">{{ weekday_name(i) }}</option>{% endfor %}</select>
+            <input class="input" type="time" name="start_time" required aria-label="{{ _('time') }}">
+          </div>
+          <div class="row" style="flex-wrap:nowrap">
+            <input class="input num" type="number" name="duration_min" min="15" max="600" step="5" value="{{ group.default_duration_min }}" aria-label="{{ _('duration_min') }}">
+            <button class="btn btn-secondary" type="submit">{{ m.icon('plus', 'icon-sm') }} {{ _('add_weekly_slot') }}</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>{{ _('documents') }}</h2></div>
+      <div class="card-body stack" style="gap:.5rem">
+        <a class="btn btn-secondary btn-block" href="{{ url_for('reports.group_report', group_id=group.id) }}" target="_blank" rel="noopener">{{ m.icon('file', 'icon-sm') }} {{ _('pdf_report') }}</a>
+        <a class="btn btn-secondary btn-block" href="{{ url_for('reports.attendance_sheet', group=group.id, month=today.strftime('%Y-%m')) }}" target="_blank" rel="noopener">{{ m.icon('file', 'icon-sm') }} {{ _('pdf_attendance_month') }}</a>
+      </div>
+    </section>
+
+    {% if group.notes %}<section class="card"><div class="card-head"><h2>{{ _('notes') }}</h2></div><div class="card-body">{{ group.notes|nl2br_safe }}</div></section>{% endif %}
+
+    <section class="card"><div class="card-body">
+      {{ m.post_button(url_for('groups.toggle_active', group_id=group.id), _('reactivate_group') if not group.active else _('archive_group'), 'btn btn-secondary btn-sm', None if not group.active else _('confirm_archive_group'), 'archive') }}
+    </div></section>
+  </div>
+</div>
+{% endblock %}

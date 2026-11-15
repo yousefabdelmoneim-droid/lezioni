@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}{{ _('new_lesson') }}{% endblock %}
+{% block mobile_title %}{{ _('new_lesson') }}{% endblock %}
+{% block content %}
+<div class="page-head"><div class="grow">
+  <div class="crumbs"><a href="{{ url_for('lessons.agenda') }}">{{ _('nav_agenda') }}</a></div>
+  <h1>{{ _('new_lesson') }}</h1><p>{{ _('new_lesson_hint') }}</p></div></div>
+
+{% if conflicts %}
+<div class="notice notice-warn" style="margin-bottom:1rem;max-width:720px">
+  <strong>{{ m.icon('alert', 'icon-sm') }} {{ _('conflict_title') }}</strong>
+  <ul style="margin:.4rem 0 0;padding-inline-start:1.2rem">
+    {% for c in conflicts %}<li><span class="ltr">{{ c.time }}–{{ c.end_time }}</span> {{ c.title if c.is_virtual else c.display_title }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<form method="post" class="card" style="max-width:720px">
+  {{ m.csrf() }}
+  <div class="card-body form-grid">
+    <div class="field full">
+      <span class="label">{{ _('lesson_for') }}</span>
+      <div class="seg">
+        <input type="radio" id="t-group" name="target" value="group" {{ 'checked' if form.target == 'group' }} data-toggle-group="target"><label for="t-group">{{ m.icon('layers', 'icon-sm') }} {{ _('group') }}</label>
+        <input type="radio" id="t-student" name="target" value="student" {{ 'checked' if form.target == 'student' }} data-toggle-group="target"><label for="t-student">{{ m.icon('user', 'icon-sm') }} {{ _('individual') }}</label>
+      </div>
+    </div>
+    <div class="field full" data-show-for="target" data-when="group">
+      <label for="group_id">{{ _('group') }}</label>
+      {% if groups %}
+      <select class="select" id="group_id" name="group_id">{% for g in groups %}<option value="{{ g.id }}" {{ 'selected' if form.group_id == g.id }}>{{ g.name }}</option>{% endfor %}</select>
+      {% else %}<p class="small muted" style="margin:0">{{ _('no_groups_yet') }} · <a href="{{ url_for('groups.new') }}">{{ _('new_group') }}</a></p>{% endif %}
+    </div>
+    <div class="field full" data-show-for="target" data-when="student">
+      <label for="student_id">{{ _('student') }}</label>
+      <select class="select" id="student_id" name="student_id">{% for s in students %}<option value="{{ s.id }}" {{ 'selected' if form.student_id == s.id }}>{{ s.name }}</option>{% endfor %}</select>
+    </div>
+    <div class="field"><label for="date">{{ _('date') }}</label><input class="input" type="date" id="date" name="date" value="{{ form.date }}" required></div>
+    <div class="field"><label for="time">{{ _('time') }}</label><input class="input" type="time" id="time" name="time" value="{{ form.time }}" required></div>
+    <div class="field"><label for="duration_min">{{ _('duration_min') }}</label><input class="input num" type="number" id="duration_min" name="duration_min" min="15" max="600" step="5" value="{{ form.duration_min }}" required></div>
+    <div class="field"><label for="kind">{{ _('lesson_kind') }}</label>
+      <select class="select" id="kind" name="kind">{% for k in kinds %}<option value="{{ k }}" {{ 'selected' if form.kind == k }}>{{ _('kind_' ~ k) }}</option>{% endfor %}</select></div>
+    <div class="field full"><label for="title">{{ _('lesson_title') }}</label><input class="input" id="title" name="title" value="{{ form.title }}" maxlength="200" placeholder="{{ _('lesson_title_ph') }}"></div>
+    {% if conflicts %}<label class="check full"><input type="checkbox" name="confirm_conflict" value="1"> {{ _('save_despite_conflict') }}</label>{% endif %}
+  </div>
+  <div class="card-foot form-actions">
+    <a class="btn btn-secondary" href="{{ url_for('lessons.agenda') }}">{{ _('cancel') }}</a>
+    <button class="btn btn-primary" type="submit">{{ m.icon('check', 'icon-sm') }} {{ _('create_lesson') }}</button>
+  </div>
+</form>
+{% endblock %}

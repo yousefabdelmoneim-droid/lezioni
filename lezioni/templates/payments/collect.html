@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% block title %}{{ _('collect_payment') }} · {{ student.name }}{% endblock %}
+{% block mobile_title %}{{ _('collect_payment') }}{% endblock %}
+{% block content %}
+<div class="crumbs"><a href="{{ url_for('students.index') }}">{{ _('nav_students') }}</a> / <a href="{{ url_for('students.show', student_id=student.id, tab='payments') }}">{{ student.name }}</a></div>
+<div class="page-head"><div class="grow"><h1>{{ _('collect_payment') }}</h1><p>{{ student.name }}</p></div></div>
+
+<div class="grid grid-main">
+  <form method="post" class="card" data-collect data-symbol="{{ {'EUR': '€', 'USD': '$', 'GBP': '£', 'EGP': 'E£'}.get(settings.currency, '€') }}">
+    {{ m.csrf() }}{{ m.idem() }}
+    <div class="card-body stack">
+      <div class="field">
+        <span class="label">{{ _('what_is_paid') }}</span>
+        <div class="seg">
+          <input type="radio" id="mode-lessons" name="mode" value="lessons" data-toggle-group="mode" {{ 'checked' if not packages or acc.owed_lessons }}><label for="mode-lessons">{{ _('mode_lessons') }}</label>
+          {% if packages %}<input type="radio" id="mode-package" name="mode" value="package" data-toggle-group="mode" {{ 'checked' if packages and not acc.owed_lessons }}><label for="mode-package">{{ _('mode_package') }}</label>{% endif %}
+          <input type="radio" id="mode-pay" name="mode" value="payment_only" data-toggle-group="mode"><label for="mode-pay">{{ _('mode_payment_only') }}</label>
+        </div>
+      </div>
+
+      <div class="form-grid" data-show-for="mode" data-when="lessons">
+        <div class="field">
+          <label for="lessons">{{ _('number_of_lessons') }}</label>
+          <input class="input num" id="lessons" name="lessons" type="number" min="0" max="500" step="1" dir="ltr" value="{{ acc.owed_lessons or (8 if student.billing_mode == 'prepaid' else 1) }}">
+          {% if acc.owed_lessons %}<span class="help">{{ _('prefilled_owed', n=acc.owed_lessons) }}</span>{% endif %}
+        </div>
+        <div class="field">
+          <label for="unit_price">{{ _('price_per_lesson') }}</label>
+          <input class="input num" id="unit_price" name="unit_price" inputmode="decimal" dir="ltr" value="{{ price|money_input }}" placeholder="20,00">
+          {% if not price %}<span class="help">{{ _('no_price_set') }} <a href="{{ url_for('settings.index') }}">{{ _('open_settings') }}</a></span>{% endif %}
+        </div>
+      </div>
+
+      {% if packages %}
+      <div class="field" data-show-for="mode" data-when="package">
+        <label for="package_id">{{ _('package') }}</label>
+        <select class="select" id="package_id" name="package_id">
+          {% for p in packages %}<option value="{{ p.id }}" data-price="{{ p.price_cents }}">{{ p.name }} — {{ _('lessons_n', n=p.lessons) }} · {{ p.price_cents|money }}</option>{% endfor %}
+        </select>
+      </div>
+      {% endif %}
+
+      <div class="notice row between" data-show-for="mode" data-when="lessons,package">
+        <span>{{ _('total_to_pay') }}</span><strong class="num" data-collect-total style="font-size:1.25rem">—</strong>
+      </div>
+
+      <div class="form-grid">
+        <div class="field">
+          <label for="amount_paid">{{ _('amount_received_now') }}</label>
+          <input class="input num" id="amount_paid" name="amount_paid" inputmode="decimal" dir="ltr" placeholder="0,00" style="font-size:1.15rem;font-weight:600">
+          <span class="help">{{ _('partial_payment_help') }}</span>
+        </div>
+        <div class="field">
+          <label for="method">{{ _('method') }}</label>
+          <select class="select" id="method" name="method">{% for mt in methods %}<option value="{{ mt }}">{{ _('method_' ~ mt) }}</option>{% endfor %}</select>
+        </div>
+        <div class="field">
+          <label for="paid_on">{{ _('date') }}</label>
+          <input class="input" type="date" id="paid_on" name="paid_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}">
+        </div>
+        <div class="field">
+          <label for="note">{{ _('note') }}</label>
+          <input class="input" id="note" name="note" maxlength="255">
+        </div>
+      </div>
+    </div>
+    <div class="card-foot form-actions">
+      <a class="btn btn-secondary" href="{{ url_for('students.show', student_id=student.id, tab='payments') }}">{{ _('cancel') }}</a>
+      <button class="btn btn-primary btn-lg" type="submit">{{ m.icon('check', 'icon-sm') }} {{ _('save_payment') }}</button>
+    </div>
+  </form>
+
+  <section class="card">
+    <div class="card-head"><h2>{{ _('current_balance') }}</h2></div>
+    <div class="card-body">
+      <dl class="kv">
+        <dt>{{ _('remaining_lessons') }}</dt><dd class="num strong" style="color:{{ 'var(--danger)' if acc.remaining < 0 else 'inherit' }}">{{ acc.remaining|signed }}</dd>
+        {% if acc.owed_lessons %}<dt>{{ _('owed_lessons') }}</dt><dd class="num">{{ acc.owed_lessons }}{% if price %} <span class="muted small">≈ {{ (acc.owed_lessons * price)|money }}</span>{% endif %}</dd>{% endif %}
+        <dt>{{ _('outstanding') }}</dt><dd class="num strong" style="color:{{ 'var(--danger)' if acc.outstanding_cents > 0 else 'inherit' }}">{{ acc.outstanding_cents|money }}</dd>
+        <dt>{{ _('billing_mode') }}</dt><dd>{{ _('billing_' ~ student.billing_mode) }}</dd>
+      </dl>
+      <p class="small muted" style="margin:.9rem 0 0">{{ _('collect_explainer') }}</p>
+    </div>
+  </section>
+</div>
+{% endblock %}

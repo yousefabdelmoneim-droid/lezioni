@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block title %}{{ _('nav_reports') }}{% endblock %}
+{% block mobile_title %}{{ _('nav_reports') }}{% endblock %}
+{% block content %}
+<div class="page-head"><div class="grow"><h1>{{ _('nav_reports') }}</h1><p>{{ _('reports_subtitle') }}</p></div></div>
+
+{% macro lang_select() -%}
+<select class="select" name="lang" aria-label="{{ _('pdf_language') }}" style="width:auto">
+  <option value="ar" {{ 'selected' if lang == 'ar' }}>العربية</option><option value="it" {{ 'selected' if lang == 'it' }}>Italiano</option>
+</select>
+{%- endmacro %}
+
+<div class="grid grid-2">
+  <form class="card" method="get" action="{{ url_for('reports.finance') }}" target="_blank">
+    <div class="card-head"><h2>{{ m.icon('euro', 'icon-sm') }} {{ _('pdf_finance') }}</h2></div>
+    <div class="card-body stack">
+      <p class="small muted" style="margin:0">{{ _('pdf_finance_desc') }}</p>
+      <div class="row">
+        <select class="select" name="month" style="width:auto" aria-label="{{ _('month') }}">{% for mo in months %}<option value="{{ mo.strftime('%Y-%m') }}">{{ mo|fdate('month') }}</option>{% endfor %}</select>
+        {{ lang_select() }}
+        <button class="btn btn-primary" type="submit">{{ m.icon('file', 'icon-sm') }} PDF</button>
+      </div>
+    </div>
+  </form>
+
+  <form class="card" method="get" action="{{ url_for('reports.attendance_sheet') }}" target="_blank">
+    <div class="card-head"><h2>{{ m.icon('check', 'icon-sm') }} {{ _('pdf_attendance_sheet') }}</h2></div>
+    <div class="card-body stack">
+      <p class="small muted" style="margin:0">{{ _('pdf_attendance_desc') }}</p>
+      <div class="row">
+        {% if groups %}
+        <select class="select" name="group" style="width:auto" aria-label="{{ _('group') }}">{% for g in groups %}<option value="{{ g.id }}">{{ g.name }}</option>{% endfor %}</select>
+        {% else %}<span class="small muted">{{ _('no_groups_yet') }}</span>{% endif %}
+        <select class="select" name="month" style="width:auto" aria-label="{{ _('month') }}">{% for mo in months %}<option value="{{ mo.strftime('%Y-%m') }}">{{ mo|fdate('month') }}</option>{% endfor %}</select>
+        {{ lang_select() }}
+        <button class="btn btn-primary" type="submit" {{ 'disabled' if not groups }}>{{ m.icon('file', 'icon-sm') }} PDF</button>
+      </div>
+    </div>
+  </form>
+
+  <form class="card" method="get" action="" target="_blank" data-student-report>
+    <div class="card-head"><h2>{{ m.icon('user', 'icon-sm') }} {{ _('pdf_student_docs') }}</h2></div>
+    <div class="card-body stack">
+      <p class="small muted" style="margin:0">{{ _('pdf_student_docs_desc') }}</p>
+      <ul class="list" style="border:1px solid var(--border);border-radius:12px;max-height:320px;overflow:auto">
+        {% for s in students %}
+        <li><span class="grow">{{ s.name }}</span>
+          <a class="btn btn-ghost btn-sm" href="{{ url_for('reports.student_report', student_id=s.id) }}" target="_blank" rel="noopener">{{ _('pdf_report') }}</a>
+          <a class="btn btn-ghost btn-sm" href="{{ url_for('reports.statement', student_id=s.id) }}" target="_blank" rel="noopener">{{ _('pdf_statement') }}</a></li>
+        {% else %}<li class="muted small">{{ _('no_students_yet') }}</li>{% endfor %}
+      </ul>
+    </div>
+  </form>
+
+  <section class="card">
+    <div class="card-head"><h2>{{ m.icon('download', 'icon-sm') }} {{ _('exports') }}</h2></div>
+    <div class="card-body stack" style="gap:.5rem">
+      <p class="small muted" style="margin:0">{{ _('exports_desc') }}</p>
+      <a class="btn btn-secondary" href="{{ url_for('reports.export_students') }}">{{ m.icon('download', 'icon-sm') }} {{ _('export_students') }}</a>
+      <a class="btn btn-secondary" href="{{ url_for('reports.export_payments') }}">{{ m.icon('download', 'icon-sm') }} {{ _('export_payments') }}</a>
+      {% if groups %}
+      <div class="label" style="margin-top:.5rem">{{ _('pdf_group_report') }}</div>
+      <div class="row">{% for g in groups %}<a class="badge" href="{{ url_for('reports.group_report', group_id=g.id) }}" target="_blank" rel="noopener"><i class="dot" style="background:{{ g.color }}"></i>{{ g.name }}</a>{% endfor %}</div>
+      {% endif %}
+    </div>
+  </section>
+</div>
+{% endblock %}

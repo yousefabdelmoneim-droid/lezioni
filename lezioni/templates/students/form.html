@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% set editing = student.id is not none %}
+{% block title %}{{ _('edit_student') if editing else _('add_student') }}{% endblock %}
+{% block mobile_title %}{{ _('edit_student') if editing else _('add_student') }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="grow">
+    <div class="crumbs"><a href="{{ url_for('students.index') }}">{{ _('nav_students') }}</a>{% if editing %} / <a href="{{ url_for('students.show', student_id=student.id) }}">{{ student.name }}</a>{% endif %}</div>
+    <h1>{{ _('edit_student') if editing else _('add_student') }}</h1>
+  </div>
+</div>
+<form method="post" class="stack" style="max-width:860px">
+  {{ m.csrf() }}
+  <section class="card">
+    <div class="card-head"><h2>{{ _('personal_info') }}</h2></div>
+    <div class="card-body form-grid">
+      <div class="field full">
+        <label for="name">{{ _('full_name') }} *</label>
+        <input class="input" id="name" name="name" value="{{ student.name or '' }}" required maxlength="120" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="phone">{{ _('phone') }}</label>
+        <input class="input" id="phone" name="phone" type="tel" dir="ltr" value="{{ student.phone or '' }}" maxlength="40" placeholder="+39 333 123 4567">
+      </div>
+      <div class="field">
+        <label for="school_grade">{{ _('school_grade') }}</label>
+        <input class="input" id="school_grade" name="school_grade" value="{{ student.school_grade or '' }}" maxlength="60" placeholder="{{ _('school_grade_ph') }}">
+      </div>
+      <div class="field">
+        <label for="guardian_name">{{ _('guardian_name') }}</label>
+        <input class="input" id="guardian_name" name="guardian_name" value="{{ student.guardian_name or '' }}" maxlength="120">
+      </div>
+      <div class="field">
+        <label for="guardian_phone">{{ _('guardian_phone') }}</label>
+        <input class="input" id="guardian_phone" name="guardian_phone" type="tel" dir="ltr" value="{{ student.guardian_phone or '' }}" maxlength="40">
+        <span class="help">{{ _('guardian_phone_help') }}</span>
+      </div>
+      <div class="field">
+        <label for="school">{{ _('school') }}</label>
+        <input class="input" id="school" name="school" value="{{ student.school or '' }}" maxlength="120">
+      </div>
+      <div class="field">
+        <label for="enrollment_date">{{ _('enrollment_date') }}</label>
+        <input class="input" id="enrollment_date" name="enrollment_date" type="date" value="{{ student.enrollment_date.isoformat() if student.enrollment_date else '' }}">
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>{{ _('lessons_and_payment') }}</h2></div>
+    <div class="card-body form-grid">
+      <div class="field full">
+        <span class="label">{{ _('billing_mode') }}</span>
+        <div class="seg">
+          <input type="radio" id="bm-post" name="billing_mode" value="postpaid" {{ 'checked' if student.billing_mode != 'prepaid' }}><label for="bm-post">{{ _('billing_postpaid') }}</label>
+          <input type="radio" id="bm-pre" name="billing_mode" value="prepaid" {{ 'checked' if student.billing_mode == 'prepaid' }}><label for="bm-pre">{{ _('billing_prepaid') }}</label>
+        </div>
+        <span class="help">{{ _('billing_mode_help') }}</span>
+      </div>
+      <div class="field">
+        <label for="price">{{ _('price_per_lesson') }}</label>
+        <input class="input num" id="price" name="price" inputmode="decimal" dir="ltr" value="{{ student.price_per_lesson_cents|money_input }}" placeholder="{{ settings.default_price_cents|money_input if settings and settings.default_price_cents else '20,00' }}">
+        <span class="help">{{ _('price_help_default') }}</span>
+      </div>
+      <div class="field">
+        <label for="message_language">{{ _('message_language') }}</label>
+        <select class="select" id="message_language" name="message_language">
+          <option value="">{{ _('use_default') }}</option>
+          <option value="ar" {{ 'selected' if student.message_language == 'ar' }}>العربية</option>
+          <option value="it" {{ 'selected' if student.message_language == 'it' }}>Italiano</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="status">{{ _('status') }}</label>
+        <select class="select" id="status" name="status">
+          {% for v in ['active', 'paused', 'archived'] %}<option value="{{ v }}" {{ 'selected' if student.status == v }}>{{ _('status_' ~ v) }}</option>{% endfor %}
+        </select>
+      </div>
+      {% if not editing and groups %}
+      <div class="field full">
+        <span class="label">{{ _('groups') }}</span>
+        <div class="row">
+          {% for g in groups %}<label class="check badge" style="padding:.35rem .7rem"><input type="checkbox" name="groups" value="{{ g.id }}"> <i class="dot" style="background:{{ g.color }}"></i> {{ g.name }}</label>{% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      <div class="field full">
+        <label for="notes">{{ _('teacher_notes') }}</label>
+        <textarea class="textarea" id="notes" name="notes" maxlength="5000">{{ student.notes or '' }}</textarea>
+      </div>
+    </div>
+  </section>
+
+  <div class="form-actions">
+    <a class="btn btn-secondary" href="{{ url_for('students.show', student_id=student.id) if editing else url_for('students.index') }}">{{ _('cancel') }}</a>
+    <button class="btn btn-primary btn-lg" type="submit">{{ m.icon('check', 'icon-sm') }} {{ _('save') }}</button>
+  </div>
+</form>
+{% endblock %}

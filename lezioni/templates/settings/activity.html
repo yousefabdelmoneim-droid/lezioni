@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}{{ _('activity_log') }}{% endblock %}
+{% block mobile_title %}{{ _('activity_log') }}{% endblock %}
+{% block content %}
+<div class="crumbs"><a href="{{ url_for('settings.index') }}">{{ _('nav_settings') }}</a></div>
+<div class="page-head"><div class="grow"><h1>{{ _('activity_log') }}</h1><p>{{ _('activity_log_hint') }}</p></div></div>
+<div class="card">
+  {% if rows %}
+  <div class="table-wrap">
+    <table class="table responsive">
+      <thead><tr><th>{{ _('when') }}</th><th>{{ _('action') }}</th><th>{{ _('details') }}</th><th>{{ _('by') }}</th></tr></thead>
+      <tbody>
+      {% for a in rows %}
+        <tr><td class="nowrap" data-label="{{ _('when') }}">{{ a.at|fdatetime }}</td>
+          <td class="primary">{{ _('audit_' ~ a.action|replace('.', '_')) }}</td>
+          <td data-label="{{ _('details') }}">{% if a.student_id %}<a href="{{ url_for('students.show', student_id=a.student_id) }}">#{{ a.student_id }}</a> · {% endif %}<span class="small">{{ a.summary }}</span></td>
+          <td data-label="{{ _('by') }}" class="small muted">{{ a.user.username if a.user else '—' }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}{{ m.empty_state('activity', _('no_activity')) }}{% endif %}
+</div>
+{{ m.pager(page, pages) }}
+{% endblock %}

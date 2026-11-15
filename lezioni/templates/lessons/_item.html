@@ -1,0 +1,30 @@
+{% import "_macros.html" as m with context %}
+{% macro agenda_item(it, show_date=False) -%}
+{% if it.is_virtual %}
+<div class="lesson-row virtual">
+  <span class="color-bar" style="background:{{ it.color or '#94a3b8' }}"></span>
+  <span class="time-chip">{{ it.time }}</span>
+  <div class="grow" style="flex:1;min-width:0">
+    <div class="title">{{ it.title }}</div>
+    <div class="small muted">{% if show_date %}{{ it.date|fdate('day') }} · {% endif %}{{ it.time }}–{{ it.end_time }} · {{ _('planned_recurring') }}</div>
+  </div>
+  <form method="post" action="{{ url_for('lessons.open_slot') }}">
+    {{ m.csrf() }}<input type="hidden" name="slot_id" value="{{ it.slot.id }}"><input type="hidden" name="date" value="{{ it.date.isoformat() }}">
+    <button class="btn btn-secondary btn-sm" type="submit" title="{{ _('open_lesson') }}" aria-label="{{ _('open_lesson') }}">{{ m.icon('check', 'icon-sm') }}<span class="btn-label"> {{ _('open_lesson') }}</span></button>
+  </form>
+</div>
+{% else %}
+<a class="lesson-row {{ 'cancelled' if it.status == 'cancelled' }}" href="{{ url_for('lessons.show', lesson_id=it.id) }}" style="color:inherit;text-decoration:none">
+  <span class="color-bar" style="background:{{ it.color or '#94a3b8' }}"></span>
+  <span class="time-chip">{{ it.time }}</span>
+  <div style="flex:1;min-width:0">
+    <div class="title">{{ it.display_title }}{% if it.title %} <span class="muted small">— {{ it.title }}</span>{% endif %}</div>
+    <div class="small muted">
+      {% if show_date %}{{ it.date|fdate('day') }} · {% endif %}{{ it.time }}–{{ it.end_time }}
+      {% if it.attendance %} · {{ _('n_present', n=it.attendance|selectattr('status', 'in', ['present', 'late', 'makeup'])|list|length) }}/{{ it.attendance|length }}{% endif %}
+    </div>
+  </div>
+  <span class="row" style="gap:.3rem">{{ m.lesson_status(it) }}</span>
+</a>
+{% endif %}
+{%- endmacro %}
