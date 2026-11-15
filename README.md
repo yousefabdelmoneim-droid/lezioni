@@ -72,6 +72,17 @@ Before merging a release that contains migrations:
 For an extra off-site copy: `pg_dump "$DATABASE_URL" > lezioni-$(date +%F).sql` (monthly is enough).
 CSV exports of students and payments are available under *Reports*.
 
+## Hosting region
+
+The Neon database is in Frankfurt (AWS eu-central-1). The web service should be in
+Render's **Frankfurt** region too: a page makes 10–25 queries, and each query that
+crosses the Atlantic adds about 90 ms. A Render service cannot change region, so moving
+means creating a new service (free plan) from this repo with `render.yaml`
+(*New → Blueprint*) or by hand with region Frankfurt, the same `DATABASE_URL`,
+build command `pip install -r requirements.txt` and start command `gunicorn app:app`.
+The new service gets a new `*.onrender.com` address: update bookmarks and the
+keep-alive ping on `/health`, check the new service works, then suspend the old one.
+
 ## Local development
 
 ```bash

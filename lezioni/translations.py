@@ -307,7 +307,7 @@ _ROWS = [
     ("agenda_legend", "الدروس بإطار متقطّع مخططة من الجدول الأسبوعي: اضغط «فتح الدرس» لتسجيل الحضور والملاحظات.", "Le lezioni tratteggiate vengono dall'orario settimanale: premi «Apri lezione» per presenze e appunti."),
     ("planned_recurring", "موعد أسبوعي", "Orario settimanale"),
     ("open_lesson", "فتح الدرس", "Apri lezione"),
-    ("n_present", "{n} حاضر", "{n} presenti"),
+    ("n_present", "الحضور {n}", "presenti {n}"),
     ("lesson_status_scheduled", "مخطط", "Programmata"),
     ("lesson_status_completed", "تم", "Svolta"),
     ("lesson_status_cancelled", "ملغى", "Annullata"),
@@ -562,4 +562,110 @@ _ROWS = [
     ("audit_auth_password", "تغيير كلمة المرور", "Password cambiata"),
 ]
 
+# ── Strings with a count: plural forms ──────────────────────────────────────
+# Arabic needs different forms for 0, 1, 2, 3–10, 11–99 and 100+ (CLDR categories
+# zero / one / two / few / many / other); Italian needs one / other.
+# "_count" names the parameter that decides the form (default "n").
+
+def _ar(zero=None, one=None, two=None, few=None, many=None, other=None):
+    forms = {"zero": zero, "one": one, "two": two, "few": few, "many": many, "other": other}
+    return {k: v for k, v in forms.items() if v is not None}
+
+
+def _it(one, other, zero=None):
+    forms = {"one": one, "other": other}
+    if zero is not None:
+        forms["zero"] = zero
+    return forms
+
+
+_PLURALS = {
+    "lessons_n": (
+        _ar(zero="لا دروس", one="درس واحد", two="درسان", few="{n} دروس", many="{n} درسًا", other="{n} درس"),
+        _it("1 lezione", "{n} lezioni"),
+    ),
+    "owes_n_lessons": (
+        _ar(one="عليه درس واحد", two="عليه درسان", few="عليه {n} دروس", many="عليه {n} درسًا", other="عليه {n} درس"),
+        _it("1 da saldare", "{n} da saldare"),
+    ),
+    "n_left": (
+        _ar(zero="لا دروس متبقية", one="المتبقي درس واحد", two="المتبقي درسان", few="المتبقي {n} دروس",
+            many="المتبقي {n} درسًا", other="المتبقي {n} درس"),
+        _it("1 rimasta", "{n} rimaste", zero="nessuna rimasta"),
+    ),
+    "owed_lessons_total": (
+        _ar(zero="لا دروس غير مدفوعة", one="درس واحد غير مدفوع", two="درسان غير مدفوعين",
+            few="{n} دروس غير مدفوعة", many="{n} درسًا غير مدفوع", other="{n} درس غير مدفوع"),
+        _it("1 lezione da saldare", "{n} lezioni da saldare", zero="nessuna lezione da saldare"),
+    ),
+    "n_next_7_days": (
+        _ar(zero="لا دروس في الأيام السبعة القادمة", one="درس واحد في الأيام السبعة القادمة",
+            two="درسان في الأيام السبعة القادمة", few="{n} دروس في الأيام السبعة القادمة",
+            many="{n} درسًا في الأيام السبعة القادمة", other="{n} درس في الأيام السبعة القادمة"),
+        _it("1 nei prossimi 7 giorni", "{n} nei prossimi 7 giorni"),
+    ),
+    "n_groups": (
+        _ar(zero="لا مجموعات", one="مجموعة واحدة", two="مجموعتان", few="{n} مجموعات", many="{n} مجموعة",
+            other="{n} مجموعة"),
+        _it("1 gruppo", "{n} gruppi", zero="nessun gruppo"),
+    ),
+    "n_overdue": (
+        _ar(one="طالب واحد متأخر", two="طالبان متأخران", few="{n} طلاب متأخرين", many="{n} طالبًا متأخرًا",
+            other="{n} طالب متأخر"),
+        _it("1 in ritardo", "{n} in ritardo"),
+    ),
+    "n_students_shown": (
+        _ar(zero="لا طلاب", one="طالب واحد", two="طالبان", few="{n} طلاب", many="{n} طالبًا", other="{n} طالب"),
+        _it("1 studente", "{n} studenti", zero="nessuno studente"),
+    ),
+    "n_minutes": (
+        _ar(one="دقيقة واحدة", two="دقيقتان", few="{n} دقائق", many="{n} دقيقة", other="{n} دقيقة"),
+        _it("1 minuto", "{n} minuti"),
+    ),
+    "n_absences": (
+        _ar(zero="بلا غياب", one="غياب واحد", two="غيابان", few="{n} مرات غياب", many="{n} مرة غياب",
+            other="{n} مرة غياب"),
+        _it("1 assenza", "{n} assenze", zero="nessuna assenza"),
+    ),
+    "n_payments": (
+        _ar(zero="لا دفعات", one="دفعة واحدة", two="دفعتان", few="{n} دفعات", many="{n} دفعة", other="{n} دفعة"),
+        _it("1 pagamento", "{n} pagamenti", zero="nessun pagamento"),
+    ),
+    "msg_members_added": (
+        _ar(one="تمت إضافة طالب واحد.", two="تمت إضافة طالبين.", few="تمت إضافة {n} طلاب.",
+            many="تمت إضافة {n} طالبًا.", other="تمت إضافة {n} طالب."),
+        _it("1 studente aggiunto.", "{n} studenti aggiunti."),
+    ),
+    "prefilled_owed": (
+        _ar(one="تمت تعبئة الدرس غير المدفوع تلقائيًا.", two="تمت تعبئة الدرسين غير المدفوعين تلقائيًا.",
+            few="تمت تعبئة {n} دروس غير مدفوعة تلقائيًا.", many="تمت تعبئة {n} درسًا غير مدفوع تلقائيًا.",
+            other="تمت تعبئة {n} درس غير مدفوع تلقائيًا."),
+        _it("Precompilato con l'unica lezione da saldare.", "Precompilato con le {n} lezioni da saldare."),
+    ),
+    "wa_payment_lessons": (
+        dict(_ar(one="السلام عليكم، معكم {teacher}. نودّ تذكيركم بأن لدى {name} درسًا واحدًا غير مدفوع. شكرًا جزيلًا لكم.",
+                 two="السلام عليكم، معكم {teacher}. نودّ تذكيركم بأن لدى {name} درسين غير مدفوعين. شكرًا جزيلًا لكم.",
+                 few="السلام عليكم، معكم {teacher}. نودّ تذكيركم بأن لدى {name} {lessons} دروس غير مدفوعة. شكرًا جزيلًا لكم.",
+                 many="السلام عليكم، معكم {teacher}. نودّ تذكيركم بأن لدى {name} {lessons} درسًا غير مدفوع. شكرًا جزيلًا لكم.",
+                 other="السلام عليكم، معكم {teacher}. نودّ تذكيركم بأن لدى {name} {lessons} درس غير مدفوع. شكرًا جزيلًا لكم."),
+             _count="lessons"),
+        dict(_it("Buongiorno, sono {teacher}. Vi ricordo gentilmente che {name} ha 1 lezione ancora da saldare. Grazie mille!",
+                 "Buongiorno, sono {teacher}. Vi ricordo gentilmente che {name} ha {lessons} lezioni ancora da saldare. Grazie mille!"),
+             _count="lessons"),
+    ),
+    "wa_balance": (
+        dict(_ar(one="السلام عليكم، معكم {teacher}. للعلم: تبقّى لـ{name} درس واحد مدفوع.",
+                 two="السلام عليكم، معكم {teacher}. للعلم: تبقّى لـ{name} درسان مدفوعان.",
+                 few="السلام عليكم، معكم {teacher}. للعلم: تبقّى لـ{name} {remaining} دروس مدفوعة.",
+                 many="السلام عليكم، معكم {teacher}. للعلم: تبقّى لـ{name} {remaining} درسًا مدفوعًا.",
+                 other="السلام عليكم، معكم {teacher}. للعلم: تبقّى لـ{name} {remaining} درس مدفوع."),
+             _count="remaining"),
+        dict(_it("Buongiorno, sono {teacher}. Per vostra informazione: a {name} resta 1 lezione già pagata.",
+                 "Buongiorno, sono {teacher}. Per vostra informazione: a {name} restano {remaining} lezioni già pagate."),
+             _count="remaining"),
+    ),
+}
+
 T = {key: {"ar": ar, "it": it} for key, ar, it in _ROWS}
+for _key, (_ar_forms, _it_forms) in _PLURALS.items():
+    T[_key] = {"ar": _ar_forms, "it": _it_forms}

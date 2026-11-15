@@ -27,11 +27,37 @@ def test_valid_time(raw, expected):
 
 
 def test_every_translation_has_both_languages():
+    import re
+
+    def placeholders(text):
+        return set(re.findall(r"{(\w+)}", text))
+
     for key, entry in T.items():
-        assert entry["ar"].strip() and entry["it"].strip(), key
-        # same placeholders in both languages
-        import re
-        assert set(re.findall(r"{(\w+)}", entry["ar"])) == set(re.findall(r"{(\w+)}", entry["it"])), key
+        ar, it = entry["ar"], entry["it"]
+        if isinstance(ar, dict) or isinstance(it, dict):
+            assert isinstance(ar, dict) and isinstance(it, dict), key
+            assert ar["other"].strip() and it["other"].strip(), key
+            assert ar.get("_count", "n") == it.get("_count", "n"), key
+            # the "other" forms carry every placeholder; the others use a subset
+            assert placeholders(ar["other"]) == placeholders(it["other"]), key
+            for forms in (ar, it):
+                for cat, text in forms.items():
+                    if cat != "_count":
+                        assert placeholders(text) <= placeholders(forms["other"]), (key, cat)
+            continue
+        assert ar.strip() and it.strip(), key
+        assert placeholders(ar) == placeholders(it), key
+
+
+@pytest.mark.parametrize("n,ar,it", [
+    (1, "عليه درس واحد", "1 da saldare"), (2, "عليه درسان", "2 da saldare"), (5, "عليه 5 دروس", "5 da saldare"),
+    (12, "عليه 12 درسًا", "12 da saldare"), (100, "عليه 100 درس", "100 da saldare"),
+])
+def test_arabic_plural_forms(n, ar, it):
+    assert translate("owes_n_lessons", "ar", n=n) == ar
+    assert translate("owes_n_lessons", "it", n=n) == it
+    assert translate("lessons_n", "it", n=1) == "1 lezione"
+    assert translate("n_minutes", "ar", n=60) == "60 دقيقة"
 
 
 def test_translate_formats_and_falls_back():

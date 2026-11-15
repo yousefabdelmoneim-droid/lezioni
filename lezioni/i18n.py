@@ -39,6 +39,30 @@ def get_lang():
     return "ar"
 
 
+def plural_category(lang, n):
+    """CLDR plural category: Arabic zero/one/two/few/many/other, Italian one/other."""
+    try:
+        n = abs(int(n))
+    except (TypeError, ValueError):
+        return "other"
+    if lang == "ar":
+        if n == 0:
+            return "zero"
+        if n == 1:
+            return "one"
+        if n == 2:
+            return "two"
+        rest = n % 100
+        if 3 <= rest <= 10:
+            return "few"
+        if 11 <= rest <= 99:
+            return "many"
+        return "other"
+    if n == 0:
+        return "zero"
+    return "one" if n == 1 else "other"
+
+
 def translate(key, lang=None, **kwargs):
     lang = lang or get_lang()
     entry = T.get(key)
@@ -46,6 +70,10 @@ def translate(key, lang=None, **kwargs):
         text = key
     else:
         text = entry.get(lang) or entry.get("ar") or key
+        if isinstance(text, dict):  # plural forms
+            count = kwargs.get(text.get("_count", "n"), 0)
+            cat = plural_category(lang, count)
+            text = text.get(cat) or text.get("other")
     if kwargs:
         try:
             text = text.format(**kwargs)
