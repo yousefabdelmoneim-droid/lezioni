@@ -39,25 +39,6 @@ students = sa.table(
     sa.column("enrollment_date", sa.Date), sa.column("created_at", sa.DateTime(timezone=True)),
     sa.column("updated_at", sa.DateTime(timezone=True)),
 )
-lessons = sa.table(
-    "lessons",
-    sa.column("id", sa.Integer), sa.column("student_id", sa.Integer), sa.column("date", sa.Date),
-    sa.column("time", sa.String), sa.column("pagato", sa.Boolean), sa.column("status", sa.String),
-    sa.column("kind", sa.String), sa.column("duration_min", sa.Integer), sa.column("version", sa.Integer),
-    sa.column("created_at", sa.DateTime(timezone=True)), sa.column("updated_at", sa.DateTime(timezone=True)),
-)
-attendance = sa.table(
-    "attendance",
-    sa.column("id", sa.Integer), sa.column("lesson_id", sa.Integer), sa.column("student_id", sa.Integer),
-    sa.column("status", sa.String), sa.column("created_at", sa.DateTime(timezone=True)),
-    sa.column("updated_at", sa.DateTime(timezone=True)),
-)
-credit_entries = sa.table(
-    "credit_entries",
-    sa.column("student_id", sa.Integer), sa.column("delta", sa.Integer), sa.column("kind", sa.String),
-    sa.column("attendance_id", sa.Integer), sa.column("note", sa.String),
-    sa.column("created_at", sa.DateTime(timezone=True)),
-)
 schedule_slots = sa.table(
     "schedule_slots",
     sa.column("student_id", sa.Integer), sa.column("weekday", sa.Integer), sa.column("start_time", sa.String),
@@ -85,6 +66,15 @@ def _parse_lesson_days(value):
     return out
 
 
+_TYPES = {"today": sa.Date(), "now": sa.DateTime(timezone=True), "yes": sa.Boolean()}
+
+
+def _sql(statement):
+    """text() with typed parameters, so dates/booleans are stored correctly on SQLite and PostgreSQL."""
+    used = [name for name in _TYPES if f":{name}" in statement]
+    return sa.text(statement).bindparams(*(sa.bindparam(n, type_=_TYPES[n]) for n in used))
+
+
 def upgrade():
     bind = op.get_bind()
     now = datetime.now(timezone.utc)
@@ -93,64 +83,54 @@ def upgrade():
     if bind.execute(sa.select(sa.func.count()).select_from(settings)).scalar() == 0:
         bind.execute(settings.insert().values(id=1, updated_at=now))
 
-    lesson_rows = bind.execute(
-        sa.select(lessons.c.id, lessons.c.student_id, lessons.c.date, lessons.c.time, lessons.c.pagato)
-        .order_by(lessons.c.date, lessons.c.time, lessons.c.id)
-    ).fetchall()
+    # Set-based statements only: the number of round trips to the database is
+    # constant, however many lessons exist (the app and Neon are in different regions).
+    values = {"today": today, "now": now, "yes": True}
 
-    first_lesson = {}
-    paid_past = {}
-    for lid, sid, d, t, pagato in lesson_rows:
-        if sid is None:
-            continue
-        first_lesson.setdefault(sid, d)
-        past = d <= today
-        bind.execute(
-            lessons.update().where(lessons.c.id == lid).values(
-                status="completed" if past else "scheduled",
-                kind="regular", duration_min=60, version=1,
-                created_at=now, updated_at=now,
-            )
-        )
-        if not past:
-            continue
-        att_id = bind.execute(
-            attendance.insert()
-            .values(lesson_id=lid, student_id=sid, status="present", created_at=now, updated_at=now)
-            .returning(attendance.c.id)
-        ).scalar_one()
-        bind.execute(
-            credit_entries.insert().values(
-                student_id=sid, delta=-1, kind="consume", attendance_id=att_id, created_at=now
-            )
-        )
-        if pagato:
-            paid_past[sid] = paid_past.get(sid, 0) + 1
+    # 1. lessons: past -> completed, future -> scheduled
+    bind.execute(_sql(
+        "UPDATE lessons SET status = CASE WHEN date <= :today THEN 'completed' ELSE 'scheduled' END, "
+        "kind = 'regular', duration_min = 60, version = 1, created_at = :now, updated_at = :now"
+    ), values)
 
-    for sid, n in paid_past.items():
-        bind.execute(
-            credit_entries.insert().values(
-                student_id=sid, delta=n, kind="opening",
-                note="Legacy: lessons marked paid before the upgrade", created_at=now,
-            )
-        )
+    # 2. every past lesson: the student was present
+    bind.execute(_sql(
+        "INSERT INTO attendance (lesson_id, student_id, status, created_at, updated_at) "
+        "SELECT id, student_id, 'present', :now, :now FROM lessons "
+        "WHERE date <= :today AND student_id IS NOT NULL"
+    ), values)
 
-    student_rows = bind.execute(sa.select(students.c.id, students.c.lesson_days, students.c.last_reset_date)).fetchall()
-    for sid, lesson_days, last_reset in student_rows:
-        bind.execute(
-            students.update().where(students.c.id == sid).values(
-                status="active", billing_mode="postpaid",
-                enrollment_date=first_lesson.get(sid) or last_reset or today,
-                created_at=now, updated_at=now,
-            )
-        )
-        for weekday, start in _parse_lesson_days(lesson_days):
-            bind.execute(
-                schedule_slots.insert().values(
-                    student_id=sid, weekday=weekday, start_time=start, duration_min=60,
-                    valid_from=today, active=True, created_at=now,
-                )
-            )
+    # 3. ...and used one lesson credit
+    bind.execute(_sql(
+        "INSERT INTO credit_entries (student_id, delta, kind, attendance_id, created_at) "
+        "SELECT student_id, -1, 'consume', id, :now FROM attendance"
+    ), values)
+
+    # 4. past lessons marked paid -> opening credits (future ones are not prepayments)
+    bind.execute(_sql(
+        "INSERT INTO credit_entries (student_id, delta, kind, note, created_at) "
+        "SELECT student_id, COUNT(*), 'opening', 'Legacy: lessons marked paid before the upgrade', :now "
+        "FROM lessons WHERE date <= :today AND pagato = :yes AND student_id IS NOT NULL "
+        "GROUP BY student_id"
+    ), values)
+
+    # 5. students: active, pay-after, enrolled since their first lesson
+    bind.execute(_sql(
+        "UPDATE students SET status = 'active', billing_mode = 'postpaid', created_at = :now, updated_at = :now, "
+        "enrollment_date = COALESCE("
+        "(SELECT MIN(l.date) FROM lessons l WHERE l.student_id = students.id), last_reset_date, :today)"
+    ), values)
+
+    # 6. weekly slots from the old "lesson_days" text (one multi-row insert)
+    student_rows = bind.execute(sa.select(students.c.id, students.c.lesson_days)).fetchall()
+    slot_rows = [
+        {"student_id": sid, "weekday": weekday, "start_time": start, "duration_min": 60,
+         "valid_from": today, "active": True, "created_at": now}
+        for sid, lesson_days in student_rows
+        for weekday, start in _parse_lesson_days(lesson_days)
+    ]
+    if slot_rows:
+        bind.execute(schedule_slots.insert(), slot_rows)
 
 
 def downgrade():
