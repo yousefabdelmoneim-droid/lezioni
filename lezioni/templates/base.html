@@ -1,0 +1,99 @@
+{% import '_macros.html' as m with context %}<!doctype html>
+<html lang="{{ lang }}" dir="{{ text_dir }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <meta name="theme-color" content="#2f6f4f">
+  <title>{% block title %}{{ _('app_name') }}{% endblock %} · {{ _('app_name') }}</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/icon.svg') }}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v=1">
+  <script src="{{ url_for('static', filename='js/theme.js') }}?v=1"></script>
+  {% block head %}{% endblock %}
+</head>
+<body>
+{% if current_user.is_authenticated %}
+<div class="app">
+  <aside class="sidebar" id="sidebar" aria-label="{{ _('navigation') }}">
+    <a class="brand" href="{{ url_for('dashboard.index') }}">
+      <span class="brand-mark">{{ m.icon('book') }}</span>
+      <span>{{ _('app_name') }}<small>{{ settings.teacher_name if settings and settings.teacher_name else _('app_tagline') }}</small></span>
+    </a>
+    <nav class="nav">
+      <a href="{{ url_for('dashboard.index') }}" class="{{ 'active' if nav == 'dashboard' }}">{{ m.icon('home') }} {{ _('nav_dashboard') }}</a>
+      <a href="{{ url_for('lessons.agenda') }}" class="{{ 'active' if nav == 'lessons' }}">{{ m.icon('clock') }} {{ _('nav_agenda') }}</a>
+      <a href="{{ url_for('lessons.calendar') }}" class="{{ 'active' if nav == 'calendar' }}">{{ m.icon('calendar') }} {{ _('nav_calendar') }}</a>
+      <div class="nav-label">{{ _('nav_section_people') }}</div>
+      <a href="{{ url_for('students.index') }}" class="{{ 'active' if nav == 'students' }}">{{ m.icon('users') }} {{ _('nav_students') }}</a>
+      <a href="{{ url_for('groups.index') }}" class="{{ 'active' if nav == 'groups' }}">{{ m.icon('layers') }} {{ _('nav_groups') }}</a>
+      <div class="nav-label">{{ _('nav_section_money') }}</div>
+      <a href="{{ url_for('payments.index') }}" class="{{ 'active' if nav == 'payments' }}">{{ m.icon('wallet') }} {{ _('nav_payments') }}</a>
+      <a href="{{ url_for('reports.index') }}" class="{{ 'active' if nav == 'reports' }}">{{ m.icon('file') }} {{ _('nav_reports') }}</a>
+      <a href="{{ url_for('settings.index') }}" class="{{ 'active' if nav == 'settings' }}">{{ m.icon('settings') }} {{ _('nav_settings') }}</a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="row">
+        <form method="post" action="{{ url_for('auth.set_lang', code='it' if lang == 'ar' else 'ar') }}">
+          {{ m.csrf() }}<input type="hidden" name="next" value="{{ request.full_path }}">
+          <button class="btn btn-ghost btn-sm" type="submit">{{ m.icon('globe', 'icon-sm') }} {{ 'Italiano' if lang == 'ar' else 'العربية' }}</button>
+        </form>
+        <button class="btn btn-ghost btn-sm" type="button" data-theme-toggle title="{{ _('toggle_theme') }}" aria-label="{{ _('toggle_theme') }}">{{ m.icon('moon', 'icon-sm') }}</button>
+      </div>
+      <div class="row between">
+        <span class="user-chip">{{ m.icon('user', 'icon-sm') }} {{ current_user.display_name or current_user.username }}</span>
+        <form method="post" action="{{ url_for('auth.logout') }}">{{ m.csrf() }}
+          <button class="btn btn-ghost btn-sm" type="submit" title="{{ _('logout') }}" aria-label="{{ _('logout') }}">{{ m.icon('logout', 'icon-sm') }}</button>
+        </form>
+      </div>
+    </div>
+  </aside>
+  <div class="backdrop" data-nav-close></div>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="btn btn-ghost btn-icon" type="button" data-nav-toggle aria-label="{{ _('menu') }}" aria-controls="sidebar">{{ m.icon('menu') }}</button>
+      <span class="title">{% block mobile_title %}{{ _('app_name') }}{% endblock %}</span>
+      {% block mobile_action %}{% endblock %}
+    </header>
+    <main class="content" id="content">
+      {{ m.flashes() }}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <nav class="bottom-nav" aria-label="{{ _('navigation') }}">
+    <a href="{{ url_for('dashboard.index') }}" class="{{ 'active' if nav == 'dashboard' }}">{{ m.icon('home') }}{{ _('nav_dashboard_short') }}</a>
+    <a href="{{ url_for('lessons.agenda') }}" class="{{ 'active' if nav in ('lessons', 'calendar') }}">{{ m.icon('clock') }}{{ _('nav_agenda') }}</a>
+    <a href="{{ url_for('students.index') }}" class="{{ 'active' if nav == 'students' }}">{{ m.icon('users') }}{{ _('nav_students') }}</a>
+    <a href="{{ url_for('payments.index') }}" class="{{ 'active' if nav == 'payments' }}">{{ m.icon('wallet') }}{{ _('nav_payments') }}</a>
+  </nav>
+</div>
+{% else %}
+  {% block public %}{% endblock %}
+{% endif %}
+
+<dialog class="modal" id="confirm-dialog">
+  <form method="dialog">
+    <div class="modal-body">
+      <h3 data-confirm-title>{{ _('are_you_sure') }}</h3>
+      <p data-confirm-text></p>
+      <div class="field hidden" data-confirm-reason-wrap>
+        <label for="confirm-reason" data-confirm-reason-label>{{ _('reason') }}</label>
+        <input class="input" id="confirm-reason" maxlength="255" autocomplete="off">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" value="cancel">{{ _('cancel') }}</button>
+      <button class="btn btn-primary" value="ok" data-confirm-ok>{{ _('confirm') }}</button>
+    </div>
+  </form>
+</dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script id="i18n" type="application/json">{{ {
+  'saving': _('autosave_saving'), 'saved': _('autosave_saved'), 'save_error': _('autosave_error'),
+  'conflict': _('autosave_conflict'), 'reason_required': _('err_reason_required'), 'offline': _('err_network')
+}|tojson }}</script>
+<script src="{{ url_for('static', filename='js/app.js') }}?v=1"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

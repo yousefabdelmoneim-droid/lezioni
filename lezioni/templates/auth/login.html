@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}{{ _('login_title') }}{% endblock %}
+{% block public %}
+<div style="min-height:100vh;display:grid;place-items:center;padding:1.5rem">
+  <div class="card" style="width:min(400px,100%)">
+    <div class="card-body stack">
+      <div class="row">
+        <span class="brand-mark">{{ m.icon('book') }}</span>
+        <div>
+          <h1 style="font-size:1.25rem">{{ _('app_name') }}</h1>
+          <div class="small muted">{{ _('login_subtitle') }}</div>
+        </div>
+      </div>
+      {{ m.flashes() }}
+      {% if no_users %}
+        <div class="notice notice-warn">
+          <strong>{{ _('setup_needed_title') }}</strong>
+          <p class="small" style="margin:.3rem 0 0">{{ _('setup_needed_text') }}</p>
+        </div>
+      {% else %}
+      <form method="post" class="stack" autocomplete="on">
+        {{ m.csrf() }}
+        <div class="field">
+          <label for="username">{{ _('username') }}</label>
+          <input class="input" id="username" name="username" autocomplete="username" autocapitalize="none" required autofocus>
+        </div>
+        <div class="field">
+          <label for="password">{{ _('password') }}</label>
+          <input class="input" id="password" name="password" type="password" autocomplete="current-password" required>
+        </div>
+        <label class="check"><input type="checkbox" name="remember" value="1" checked> {{ _('remember_me') }}</label>
+        <button class="btn btn-primary btn-lg btn-block" type="submit">{{ m.icon('lock', 'icon-sm') }} {{ _('login') }}</button>
+      </form>
+      {% endif %}
+      <form method="post" action="{{ url_for('auth.set_lang', code='it' if lang == 'ar' else 'ar') }}" class="row end">
+        {{ m.csrf() }}<input type="hidden" name="next" value="{{ request.full_path }}">
+        <button class="btn btn-ghost btn-sm" type="submit">{{ m.icon('globe', 'icon-sm') }} {{ 'Italiano' if lang == 'ar' else 'العربية' }}</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+{% from 'lessons/_item.html' import agenda_item with context %}
+{% block title %}{{ _('nav_dashboard') }}{% endblock %}
+{% block mobile_title %}{{ _('nav_dashboard') }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="grow">
+    <h1>{{ _('hello_name', name=(settings.teacher_name or current_user.display_name or '')).strip() }}</h1>
+    <p>{{ today|fdate }}</p>
+  </div>
+  <a class="btn btn-secondary" href="{{ url_for('students.new') }}">{{ m.icon('user', 'icon-sm') }} {{ _('add_student') }}</a>
+  <a class="btn btn-primary" href="{{ url_for('lessons.new') }}">{{ m.icon('plus', 'icon-sm') }} {{ _('new_lesson') }}</a>
+</div>
+
+{% if settings and not settings.default_price_cents %}
+<div class="notice notice-warn" style="margin-bottom:1rem">
+  {{ m.icon('alert', 'icon-sm') }} {{ _('notice_set_price') }} <a href="{{ url_for('settings.index') }}">{{ _('open_settings') }}</a>
+</div>
+{% endif %}
+
+<div class="grid grid-4" style="margin-bottom:1rem">
+  <div class="card stat">
+    <span class="stat-icon">{{ m.icon('users') }}</span>
+    <span class="label">{{ _('active_students') }}</span>
+    <span class="value">{{ d.active_students }}</span>
+    <span class="hint">{{ _('n_groups', n=d.active_groups) }}</span>
+    <a class="cover" href="{{ url_for('students.index') }}" aria-label="{{ _('nav_students') }}"></a>
+  </div>
+  <div class="card stat">
+    <span class="stat-icon">{{ m.icon('clock') }}</span>
+    <span class="label">{{ _('todays_lessons') }}</span>
+    <span class="value">{{ d.todays|rejectattr('status', 'equalto', 'cancelled')|list|length }}</span>
+    <span class="hint">{{ _('n_next_7_days', n=d.upcoming_count) }}</span>
+    <a class="cover" href="{{ url_for('lessons.agenda', view='day') }}" aria-label="{{ _('nav_agenda') }}"></a>
+  </div>
+  <div class="card stat tone-ok">
+    <span class="stat-icon">{{ m.icon('euro') }}</span>
+    <span class="label">{{ _('received_this_month') }}</span>
+    <span class="value">{{ d.month_received|money }}</span>
+    <span class="hint">{{ today|fdate('month') }}</span>
+    <a class="cover" href="{{ url_for('payments.index') }}" aria-label="{{ _('nav_payments') }}"></a>
+  </div>
+  <div class="card stat {{ 'tone-danger' if d.outstanding_cents or d.owed_lessons }}">
+    <span class="stat-icon">{{ m.icon('wallet') }}</span>
+    <span class="label">{{ _('to_collect') }}</span>
+    <span class="value">{{ d.outstanding_cents|money }}</span>
+    <span class="hint">{{ _('owed_lessons_total', n=d.owed_lessons) }}{% if d.overdue_count %} · {{ _('n_overdue', n=d.overdue_count) }}{% endif %}</span>
+    <a class="cover" href="{{ url_for('students.index', balance='owing') }}" aria-label="{{ _('to_collect') }}"></a>
+  </div>
+</div>
+
+<div class="grid grid-main">
+  <div class="stack">
+    <section class="card">
+      <div class="card-head">
+        <h2>{{ _('today') }}</h2><span class="muted small">{{ today|fdate('day') }}</span>
+        <span class="spacer"></span>
+        <a class="btn btn-ghost btn-sm" href="{{ url_for('lessons.agenda') }}">{{ _('see_week') }}</a>
+      </div>
+      <div class="card-body">
+        {% for it in d.todays %}{{ agenda_item(it) }}{% else %}
+          {{ m.empty_state('calendar', _('no_lessons_today'), _('no_lessons_today_hint'), url_for('lessons.new'), _('new_lesson')) }}
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>{{ _('revenue_6_months') }}</h2></div>
+      <div class="card-body">
+        {% set W = 600 %}{% set H = 190 %}{% set n = d.revenue|length %}{% set bw = (W - 20) / n %}
+        <svg class="chart" viewBox="0 0 {{ W }} {{ H + 24 }}" role="img" aria-label="{{ _('revenue_6_months') }}" direction="ltr">
+          {% for i in range(4) %}<line class="grid-line" x1="0" x2="{{ W }}" y1="{{ 10 + i * (H - 10) / 3 }}" y2="{{ 10 + i * (H - 10) / 3 }}"/>{% endfor %}
+          {% for month, cents in d.revenue %}
+            {% set h = ((cents / max_rev) * (H - 30))|round(1) %}
+            {% set x = 10 + loop.index0 * bw + bw * 0.2 %}
+            <rect class="bar-rect {{ 'current' if loop.last }}" x="{{ x }}" y="{{ H - h }}" width="{{ bw * 0.6 }}" height="{{ h }}" rx="5"><title>{{ month|fdate('month') }}: {{ cents|money }}</title></rect>
+            {% if cents %}<text class="val" x="{{ x + bw * 0.3 }}" y="{{ H - h - 6 }}" text-anchor="middle">{{ (cents // 100) }}</text>{% endif %}
+            <text class="axis" x="{{ x + bw * 0.3 }}" y="{{ H + 18 }}" text-anchor="middle">{{ month|fdate('mon') }}</text>
+          {% endfor %}
+        </svg>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>{{ _('upcoming_7_days') }}</h2><span class="spacer"></span><a class="btn btn-ghost btn-sm" href="{{ url_for('lessons.calendar') }}">{{ _('nav_calendar') }}</a></div>
+      <div class="card-body">
+        {% for it in d.upcoming %}{{ agenda_item(it, show_date=True) }}{% else %}
+          <p class="muted small" style="margin:0">{{ _('nothing_planned') }}</p>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+
+  <div class="stack">
+    <section class="card">
+      <div class="card-head"><h2>{{ _('to_collect') }}</h2><span class="badge">{{ d.to_collect_count }}</span><span class="spacer"></span>
+        <a class="btn btn-ghost btn-sm" href="{{ url_for('students.index', balance='owing') }}">{{ _('see_all') }}</a></div>
+      {% if d.to_collect %}
+      <ul class="list">
+        {% for s in d.to_collect %}{% set a = d.accounts[s.id] %}
+        <li>
+          {{ m.avatar(s) }}
+          <div class="grow">
+            <a href="{{ url_for('students.show', student_id=s.id, tab='payments') }}" class="strong" style="color:inherit">{{ s.name }}</a>
+            <div class="row" style="gap:.3rem;margin-top:.15rem">{{ m.balance_badge(a, s) }}</div>
+          </div>
+          <a class="btn btn-primary btn-sm" href="{{ url_for('payments.collect', student_id=s.id) }}">{{ m.icon('euro', 'icon-sm') }}</a>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<div class="card-body"><p class="muted small" style="margin:0">{{ m.icon('check', 'icon-sm') }} {{ _('all_settled') }}</p></div>{% endif %}
+    </section>
+
+    {% if d.low_balance %}
+    <section class="card">
+      <div class="card-head"><h2>{{ _('low_balance') }}</h2><span class="badge badge-warn">{{ d.low_balance|length }}</span></div>
+      <ul class="list">
+        {% for s in d.low_balance %}{% set a = d.accounts[s.id] %}
+        <li>{{ m.avatar(s) }}<div class="grow"><a href="{{ url_for('students.show', student_id=s.id) }}" style="color:inherit" class="strong">{{ s.name }}</a>
+          <div class="meta">{{ _('n_left', n=a.remaining) }}</div></div>
+          <a class="btn btn-secondary btn-sm" href="{{ url_for('payments.collect', student_id=s.id) }}">{{ _('sell_package') }}</a></li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+
+    <section class="card">
+      <div class="card-head"><h2>{{ _('attendance_30_days') }}</h2></div>
+      <div class="card-body">
+        {% set att = d.attendance %}
+        {% if att.expected %}
+          <div class="row between" style="margin-bottom:.5rem"><span class="value strong" style="font-size:1.6rem">{{ att.rate }}%</span><span class="small muted">{{ _('n_of_m_attended', n=att.attended, m=att.expected) }}</span></div>
+          <div class="stacked" aria-hidden="true">
+            {% for k in ['present', 'late', 'makeup', 'excused', 'absent'] %}{% if att.counts[k] %}<span class="c-{{ k }}" style="width:{{ att.counts[k] / att.expected * 100 }}%"></span>{% endif %}{% endfor %}
+          </div>
+          <div class="legend" style="margin-top:.6rem">
+            {% for k in ['present', 'late', 'makeup', 'excused', 'absent'] %}<span><i class="dot c-{{ k }}"></i>{{ _('att_' ~ k) }} {{ att.counts[k] }}</span>{% endfor %}
+          </div>
+        {% else %}<p class="muted small" style="margin:0">{{ _('no_attendance_yet') }}</p>{% endif %}
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>{{ _('recent_activity') }}</h2><span class="spacer"></span><a class="btn btn-ghost btn-sm" href="{{ url_for('settings.activity') }}">{{ _('see_all') }}</a></div>
+      {% if d.activity %}
+      <ul class="list">
+        {% for a in d.activity %}
+        <li><span class="dot" style="background:var(--accent)"></span><div class="grow"><div class="small">{{ _('audit_' ~ a.action|replace('.', '_')) }}{% if a.summary %} <span class="muted">· {{ a.summary }}</span>{% endif %}</div><div class="meta">{{ a.at|fdatetime }}</div></div></li>
+        {% endfor %}
+      </ul>
+      {% else %}<div class="card-body muted small">{{ _('no_activity') }}</div>{% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

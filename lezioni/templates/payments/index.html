@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}{{ _('nav_payments') }}{% endblock %}
+{% block mobile_title %}{{ _('nav_payments') }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="grow"><h1>{{ _('nav_payments') }}</h1><p>{{ first|fdate('short') }} – {{ last|fdate('short') }} {{ last.year }}</p></div>
+  <a class="btn btn-secondary" href="{{ url_for('students.index', balance='owing') }}">{{ m.icon('users', 'icon-sm') }} {{ _('students_to_collect') }}</a>
+  <a class="btn btn-secondary" href="{{ url_for('reports.finance', month=first.strftime('%Y-%m')) }}" target="_blank" rel="noopener">{{ m.icon('file', 'icon-sm') }} {{ _('pdf_finance') }}</a>
+  <a class="btn btn-secondary hide-mobile" href="{{ url_for('reports.export_payments') }}">{{ m.icon('download', 'icon-sm') }} CSV</a>
+</div>
+
+<div class="grid grid-3" style="margin-bottom:1rem">
+  <div class="card stat tone-ok"><span class="label">{{ _('received') }}</span><span class="value">{{ received|money }}</span><span class="hint">{{ _('n_payments', n=rows|selectattr(0, 'equalto', 'payment')|list|length) }}</span></div>
+  <div class="card stat"><span class="label">{{ _('lessons_sold') }}</span><span class="value">{{ charged|money }}</span></div>
+  <div class="card stat"><span class="label">{{ _('by_method') }}</span>
+    <div class="stack" style="gap:.2rem;margin-top:.3rem">{% for mt, c in by_method.items() %}<div class="row between small"><span>{{ _('method_' ~ mt) }}</span><strong class="num">{{ c|money }}</strong></div>{% else %}<span class="muted small">—</span>{% endfor %}</div>
+  </div>
+</div>
+
+<form class="card card-pad" method="get" style="margin-bottom:1rem">
+  <div class="filters">
+    <div class="field"><label for="from">{{ _('from') }}</label><input class="input" type="date" id="from" name="from" value="{{ first.isoformat() }}"></div>
+    <div class="field"><label for="to">{{ _('to') }}</label><input class="input" type="date" id="to" name="to" value="{{ last.isoformat() }}"></div>
+    <div class="field"><label for="student">{{ _('student') }}</label>
+      <select class="select" id="student" name="student"><option value="">{{ _('all_students') }}</option>{% for s in students %}<option value="{{ s.id }}" {{ 'selected' if student_id == s.id }}>{{ s.name }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="method">{{ _('method') }}</label>
+      <select class="select" id="method" name="method"><option value="">{{ _('all') }}</option>{% for mt in methods %}<option value="{{ mt }}" {{ 'selected' if method == mt }}>{{ _('method_' ~ mt) }}</option>{% endfor %}</select></div>
+    <label class="check" style="align-self:flex-end;padding-bottom:.6rem"><input type="checkbox" name="voided" value="1" {{ 'checked' if show_voided }}> {{ _('show_voided') }}</label>
+    <button class="btn btn-secondary" type="submit" style="align-self:flex-end">{{ _('filter') }}</button>
+  </div>
+</form>
+
+<div class="card">
+  {% if rows %}
+  <div class="table-wrap">
+    <table class="table responsive">
+      <thead><tr><th>{{ _('date') }}</th><th>{{ _('student') }}</th><th>{{ _('description') }}</th><th class="end">{{ _('amount') }}</th><th></th></tr></thead>
+      <tbody>
+      {% for kind, d, o in rows %}
+        <tr class="{{ 'voided' if o.voided_at }}">
+          <td data-label="{{ _('date') }}" class="nowrap">{{ d|fdate('numeric') }}</td>
+          <td class="primary"><a href="{{ url_for('students.show', student_id=o.student_id, tab='payments') }}">{{ o.student.name }}</a></td>
+          <td data-label="{{ _('description') }}">
+            {% if kind == 'payment' %}<span class="badge badge-ok">{{ _('payment') }}</span> {{ _('method_' ~ o.method) }} · <span class="ltr small muted">{{ o.receipt_no }}</span>
+            {% else %}<span class="badge badge-info">{{ _('lessons_sold') }}</span> {{ o.description or _('lessons_n', n=o.lessons) }}{% endif %}
+            {% if o.voided_at %}<div class="small" style="color:var(--danger)">{{ _('voided') }}: {{ o.void_reason }}</div>{% endif %}
+          </td>
+          <td class="end num strong" data-label="{{ _('amount') }}" style="{{ 'color:var(--ok)' if kind == 'payment' }}">{{ o.amount_cents|money }}</td>
+          <td class="end">{% if kind == 'payment' %}<a class="btn btn-ghost btn-sm" href="{{ url_for('reports.receipt', payment_id=o.id) }}" target="_blank" rel="noopener" title="{{ _('open_receipt') }}">{{ m.icon('file', 'icon-sm') }}</a>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    {{ m.empty_state('wallet', _('no_transactions'), _('no_transactions_period')) }}
+  {% endif %}
+</div>
+{% endblock %}

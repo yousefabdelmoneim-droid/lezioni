@@ -3,9 +3,15 @@ services:
     name: lezioni-private
     runtime: python
     buildCommand: pip install -r requirements.txt
+    # Migrations run automatically when the app boots (safe, transactional, idempotent).
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 60
+    healthCheckPath: /health
     envVars:
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
-        sync: false   # imposta manualmente dalla dashboard Render con la stringa Neon
+        sync: false   # Neon connection string, set in the Render dashboard
+      - key: ADMIN_USERNAME
+        sync: false   # first login account (created once, only if no account exists)
+      - key: ADMIN_PASSWORD
+        sync: false   # at least 8 characters; change it later from Settings

@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block title %}{{ _('nav_settings') }}{% endblock %}
+{% block mobile_title %}{{ _('nav_settings') }}{% endblock %}
+{% block content %}
+<div class="page-head"><div class="grow"><h1>{{ _('nav_settings') }}</h1><p>{{ _('settings_subtitle') }}</p></div>
+  <a class="btn btn-secondary" href="{{ url_for('settings.activity') }}">{{ m.icon('activity', 'icon-sm') }} {{ _('activity_log') }}</a></div>
+
+<form method="post" class="stack" style="max-width:880px">
+  {{ m.csrf() }}
+  <section class="card">
+    <div class="card-head"><h2>{{ _('teacher_profile') }}</h2><span class="small muted">{{ _('teacher_profile_hint') }}</span></div>
+    <div class="card-body form-grid">
+      <div class="field"><label for="teacher_name">{{ _('teacher_name') }}</label><input class="input" id="teacher_name" name="teacher_name" value="{{ s.teacher_name }}" maxlength="120"></div>
+      <div class="field"><label for="subject">{{ _('subject') }}</label><input class="input" id="subject" name="subject" value="{{ s.subject }}" maxlength="120"></div>
+      <div class="field"><label for="teacher_phone">{{ _('phone') }}</label><input class="input" id="teacher_phone" name="teacher_phone" type="tel" dir="ltr" value="{{ s.teacher_phone }}" maxlength="40"></div>
+      <div class="field"><label for="teacher_email">{{ _('email') }}</label><input class="input" id="teacher_email" name="teacher_email" type="email" dir="ltr" value="{{ s.teacher_email }}" maxlength="120"></div>
+      <div class="field full"><label for="address">{{ _('address') }}</label><input class="input" id="address" name="address" value="{{ s.address }}" maxlength="255"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>{{ _('prices_and_defaults') }}</h2></div>
+    <div class="card-body form-grid">
+      <div class="field"><label for="default_price">{{ _('default_price') }}</label><input class="input num" id="default_price" name="default_price" inputmode="decimal" dir="ltr" value="{{ s.default_price_cents|money_input }}" placeholder="20,00"><span class="help">{{ _('default_price_help') }}</span></div>
+      <div class="field"><label for="default_duration_min">{{ _('default_duration') }}</label><input class="input num" id="default_duration_min" name="default_duration_min" type="number" min="15" max="600" step="5" value="{{ s.default_duration_min }}"></div>
+      <div class="field"><label for="currency">{{ _('currency') }}</label>
+        <select class="select" id="currency" name="currency">{% for c in ['EUR', 'USD', 'GBP', 'EGP'] %}<option value="{{ c }}" {{ 'selected' if s.currency == c }}>{{ c }}</option>{% endfor %}</select></div>
+      <div class="field"><label for="language">{{ _('default_language') }}</label>
+        <select class="select" id="language" name="language"><option value="ar" {{ 'selected' if s.language == 'ar' }}>العربية</option><option value="it" {{ 'selected' if s.language == 'it' }}>Italiano</option></select>
+        <span class="help">{{ _('default_language_help') }}</span></div>
+      <div class="field"><label for="default_country_code">{{ _('country_code') }}</label><input class="input num" id="default_country_code" name="default_country_code" dir="ltr" value="{{ s.default_country_code }}" maxlength="4"><span class="help">{{ _('country_code_help') }}</span></div>
+      <div class="field"><label for="payment_due_days">{{ _('payment_due_days') }}</label><input class="input num" id="payment_due_days" name="payment_due_days" type="number" min="1" max="365" value="{{ s.payment_due_days }}"><span class="help">{{ _('payment_due_days_help') }}</span></div>
+      <div class="field"><label for="low_balance_threshold">{{ _('low_balance_threshold') }}</label><input class="input num" id="low_balance_threshold" name="low_balance_threshold" type="number" min="0" max="50" value="{{ s.low_balance_threshold }}"><span class="help">{{ _('low_balance_threshold_help') }}</span></div>
+      <div class="field full"><label for="receipt_footer">{{ _('receipt_footer') }}</label><textarea class="textarea" id="receipt_footer" name="receipt_footer" style="min-height:70px" maxlength="1000">{{ s.receipt_footer }}</textarea></div>
+    </div>
+  </section>
+
+  <section class="card" id="policy">
+    <div class="card-head"><h2>{{ _('attendance_policy') }}</h2></div>
+    <div class="card-body stack">
+      <p class="small muted" style="margin:0">{{ _('attendance_policy_help') }}</p>
+      {% for f, st in [('charge_present', 'present'), ('charge_late', 'late'), ('charge_absent', 'absent'), ('charge_excused', 'excused'), ('charge_makeup', 'makeup')] %}
+      <label class="check"><input type="checkbox" name="{{ f }}" value="1" {{ 'checked' if s[f] }}> {{ m.att_badge(st) }} {{ _('uses_a_lesson_credit') }}</label>
+      {% endfor %}
+      <p class="small muted" style="margin:0">{{ m.icon('ban', 'icon-sm') }} {{ _('policy_cancelled_note') }}</p>
+    </div>
+  </section>
+
+  <div class="form-actions"><button class="btn btn-primary btn-lg" type="submit">{{ m.icon('check', 'icon-sm') }} {{ _('save_settings') }}</button></div>
+</form>
+
+<section class="card" id="packages" style="max-width:880px;margin-top:1rem">
+  <div class="card-head"><h2>{{ _('lesson_packages') }}</h2></div>
+  {% if packages %}
+  <ul class="list">
+    {% for p in packages %}
+    <li><div class="grow"><span class="strong">{{ p.name }}</span>{% if not p.active %} <span class="badge">{{ _('inactive') }}</span>{% endif %}
+      <div class="meta">{{ _('lessons_n', n=p.lessons) }} · {{ p.price_cents|money }} · {{ _('per_lesson_price', price=(p.price_cents // p.lessons)|money) }}</div></div>
+      {{ m.post_button(url_for('settings.toggle_package', package_id=p.id), _('deactivate') if p.active else _('activate'), 'btn btn-secondary btn-sm') }}</li>
+    {% endfor %}
+  </ul>
+  {% else %}<div class="card-body muted small">{{ _('no_packages') }}</div>{% endif %}
+  <form method="post" action="{{ url_for('settings.add_package') }}" class="card-foot row">
+    {{ m.csrf() }}
+    <input class="input" name="name" placeholder="{{ _('package_name_ph') }}" required maxlength="120" style="flex:2;min-width:160px" aria-label="{{ _('package') }}">
+    <input class="input num" name="lessons" type="number" min="1" max="500" placeholder="{{ _('lessons') }}" required style="flex:1;min-width:90px" aria-label="{{ _('lessons') }}">
+    <input class="input num" name="price" inputmode="decimal" dir="ltr" placeholder="{{ _('price') }}" required style="flex:1;min-width:100px" aria-label="{{ _('price') }}">
+    <button class="btn btn-primary" type="submit">{{ m.icon('plus', 'icon-sm') }} {{ _('add') }}</button>
+  </form>
+</section>
+
+<section class="card" id="account" style="max-width:880px;margin-top:1rem">
+  <div class="card-head"><h2>{{ _('account') }}</h2><span class="small muted">{{ current_user.username }}</span></div>
+  <form method="post" action="{{ url_for('settings.change_password') }}" class="card-body form-grid">
+    {{ m.csrf() }}
+    <div class="field full"><label for="current">{{ _('current_password') }}</label><input class="input" id="current" name="current" type="password" autocomplete="current-password" required></div>
+    <div class="field"><label for="new">{{ _('new_password') }}</label><input class="input" id="new" name="new" type="password" autocomplete="new-password" minlength="8" required></div>
+    <div class="field"><label for="confirm">{{ _('confirm_password') }}</label><input class="input" id="confirm" name="confirm" type="password" autocomplete="new-password" minlength="8" required></div>
+    <div class="form-actions full"><button class="btn btn-secondary" type="submit">{{ m.icon('lock', 'icon-sm') }} {{ _('change_password') }}</button></div>
+  </form>
+</section>
+{% endblock %}

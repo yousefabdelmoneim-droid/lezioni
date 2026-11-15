@@ -1,0 +1,122 @@
+{% set ICONS = {
+  'home': ['M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z'],
+  'users': ['M9 11.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z', 'M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5', 'M16 4.6a3.5 3.5 0 0 1 0 6.8', 'M18.5 14.8c1.7.7 2.8 2.4 3.2 5.2'],
+  'user': ['M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', 'M4 21c1-4 4.2-6 8-6s7 2 8 6'],
+  'layers': ['M12 3 2 8l10 5 10-5z', 'M2 13l10 5 10-5'],
+  'book': ['M4 4h11a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3z', 'M4 17a3 3 0 0 1 3-3h11', 'M8 8h6'],
+  'calendar': ['M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z', 'M3 10h18', 'M8 3v4', 'M16 3v4'],
+  'wallet': ['M5 6h14a2.5 2.5 0 0 1 2.5 2.5v9A2.5 2.5 0 0 1 19 20H5a2.5 2.5 0 0 1-2.5-2.5v-9A2.5 2.5 0 0 1 5 6z', 'M2.5 10h19', 'M16.5 15h2'],
+  'chart': ['M4 20V11', 'M10 20V5', 'M16 20v-6', 'M21 20H3'],
+  'file': ['M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z', 'M14 3v6h6', 'M8 13h8', 'M8 17h5'],
+  'settings': ['M4 6h9', 'M19 6h1', 'M4 12h3', 'M13 12h7', 'M4 18h11', 'M21 18h-1', 'M16 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4z', 'M10 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z', 'M18 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4z'],
+  'plus': ['M12 5v14', 'M5 12h14'],
+  'search': ['M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z', 'm20 20-3.5-3.5'],
+  'check': ['M5 12.5l4.5 4.5L19 7'],
+  'x': ['M6 6l12 12', 'M18 6 6 18'],
+  'menu': ['M4 7h16', 'M4 12h16', 'M4 17h16'],
+  'moon': ['M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z'],
+  'logout': ['M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3', 'M10 17l-5-5 5-5', 'M5 12h11'],
+  'whatsapp': ['M20 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20l1.2-4.2A8.5 8.5 0 1 1 20 11.5z', 'M9 9.5c.3 2 2.2 4.2 4.8 5'],
+  'phone': ['M5 4h3l2 5-2.5 1.5a11 11 0 0 0 6 6L15 14l5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z'],
+  'clock': ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M12 7v5l3 2'],
+  'alert': ['M12 3.5 2.5 20h19z', 'M12 10v4', 'M12 17h.01'],
+  'edit': ['M4 20h4L19 9l-4-4L4 16z', 'M14 6l4 4'],
+  'trash': ['M4 7h16', 'M9 7V4h6v3', 'M6 7l1 13h10l1-13'],
+  'download': ['M12 4v11', 'M7 10l5 5 5-5', 'M4 20h16'],
+  'next': ['M9 6l6 6-6 6'],
+  'prev': ['M15 6l-6 6 6 6'],
+  'euro': ['M17 6.5A6.5 6.5 0 1 0 17 17.5', 'M4 10h9', 'M4 14h9'],
+  'activity': ['M3 12h4l3-8 4 16 3-8h4'],
+  'archive': ['M3 4h18v4H3z', 'M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8', 'M10 12h4'],
+  'repeat': ['M4 12a8 8 0 0 1 14-5.3L20 9', 'M20 4v5h-5', 'M20 12a8 8 0 0 1-14 5.3L4 15', 'M4 20v-5h5'],
+  'globe': ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M3 12h18', 'M12 3c2.5 2.7 3.7 5.7 3.7 9s-1.2 6.3-3.7 9', 'M12 3c-2.5 2.7-3.7 5.7-3.7 9s1.2 6.3 3.7 9'],
+  'bolt': ['M13 2 4 14h7l-1 8 9-12h-7z'],
+  'star': ['M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z'],
+  'ban': ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M5.6 5.6l12.8 12.8'],
+  'gift': ['M4 10h16v10H4z', 'M3 7h18v3H3z', 'M12 7v13', 'M12 7c-1.5-3-5-3-5-1s3 1 5 1c2 0 5 1 5-1s-3.5-2-5 1z'],
+  'lock': ['M6 11h12v9H6z', 'M8.5 11V8a3.5 3.5 0 0 1 7 0v3'],
+} %}
+
+{% macro icon(name, cls='') -%}
+<svg class="icon {{ cls }}" viewBox="0 0 24 24" aria-hidden="true">{% for d in ICONS.get(name, []) %}<path d="{{ d }}"/>{% endfor %}</svg>
+{%- endmacro %}
+
+{% macro flashes() -%}
+{% with msgs = get_flashed_messages(with_categories=true) %}
+  {% if msgs %}
+  <div class="flashes" role="status">
+    {% for cat, msg in msgs %}
+      <div class="flash flash-{{ cat }}">
+        {{ icon('check' if cat == 'success' else 'alert', 'icon-sm') }}
+        <span>{{ msg }}</span>
+        <button type="button" data-dismiss aria-label="{{ _('close') }}">×</button>
+      </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% endwith %}
+{%- endmacro %}
+
+{% macro empty_state(icon_name, title, text='', action_url=None, action_label=None) -%}
+<div class="empty">
+  <div class="icon-wrap">{{ icon(icon_name) }}</div>
+  <h3>{{ title }}</h3>
+  {% if text %}<p>{{ text }}</p>{% endif %}
+  {% if action_url %}<a class="btn btn-primary" href="{{ action_url }}">{{ icon('plus', 'icon-sm') }} {{ action_label }}</a>{% endif %}
+</div>
+{%- endmacro %}
+
+{# A POST button with a confirmation dialog. #}
+{% macro post_button(url, label, cls='btn btn-secondary btn-sm', confirm=None, icon_name=None, fields={}, title=None, reason=False) -%}
+<form method="post" action="{{ url }}" class="inline-form"{% if confirm %} data-confirm="{{ confirm }}"{% endif %}{% if reason %} data-reason="{{ _('reason') }}"{% endif %}>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% for k, v in fields.items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+  {% if reason %}<input type="hidden" name="reason" value="">{% endif %}
+  <button type="submit" class="{{ cls }}"{% if title %} title="{{ title }}" aria-label="{{ title }}"{% endif %}>{% if icon_name %}{{ icon(icon_name, 'icon-sm') }}{% endif %}{% if label %} {{ label }}{% endif %}</button>
+</form>
+{%- endmacro %}
+
+{% macro csrf() -%}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{%- endmacro %}
+
+{% macro idem() -%}<input type="hidden" name="idempotency_key" value="" data-idempotency>{%- endmacro %}
+
+{% macro avatar(student, cls='') -%}<span class="avatar {{ cls }}" aria-hidden="true">{{ student.initials }}</span>{%- endmacro %}
+
+{% macro student_status(status) -%}
+<span class="badge {{ {'active': 'badge-ok', 'paused': 'badge-warn', 'archived': ''}[status] }}">{{ _('status_' ~ status) }}</span>
+{%- endmacro %}
+
+{% macro att_badge(status) -%}
+<span class="badge {{ {'present': 'badge-ok', 'late': 'badge-warn', 'absent': 'badge-danger', 'excused': 'badge-info', 'makeup': 'badge-violet', 'cancelled': ''}[status] }}">{{ _('att_' ~ status) }}</span>
+{%- endmacro %}
+
+{% macro lesson_status(lesson) -%}
+{% if lesson.status == 'cancelled' %}<span class="badge badge-danger">{{ _('lesson_status_cancelled') }}</span>
+{% elif lesson.status == 'completed' %}<span class="badge badge-ok">{{ _('lesson_status_completed') }}</span>
+{% else %}<span class="badge badge-info">{{ _('lesson_status_scheduled') }}</span>{% endif %}
+{% if lesson.is_free %}<span class="badge badge-violet">{{ _('free') }}</span>{% endif %}
+{% if lesson.kind != 'regular' %}<span class="badge">{{ _('kind_' ~ lesson.kind) }}</span>{% endif %}
+{%- endmacro %}
+
+{# Credits + money summary for one student account #}
+{% macro balance_badge(acc, student) -%}
+{% if acc.overdue %}<span class="badge badge-danger">{{ _('overdue') }}</span>{% endif %}
+{% if acc.owed_lessons > 0 %}
+  <span class="badge badge-warn">{{ _('owes_n_lessons', n=acc.owed_lessons) }}</span>
+{% elif acc.low_balance %}
+  <span class="badge badge-warn">{{ _('n_left', n=acc.remaining) }}</span>
+{% elif acc.remaining > 0 %}
+  <span class="badge badge-ok">{{ _('n_left', n=acc.remaining) }}</span>
+{% endif %}
+{% if acc.outstanding_cents > 0 %}<span class="badge badge-danger num">{{ acc.outstanding_cents|money }}</span>{% endif %}
+{%- endmacro %}
+
+{% macro pager(page, pages) -%}
+{% if pages > 1 %}
+<div class="row end" style="margin-top:1rem">
+  {% if page > 1 %}<a class="btn btn-secondary btn-sm" href="{{ url_with(page=page-1) }}">{{ icon('prev' if text_dir == 'ltr' else 'next', 'icon-sm') }}</a>{% endif %}
+  <span class="small muted">{{ page }} / {{ pages }}</span>
+  {% if page < pages %}<a class="btn btn-secondary btn-sm" href="{{ url_with(page=page+1) }}">{{ icon('next' if text_dir == 'ltr' else 'prev', 'icon-sm') }}</a>{% endif %}
+</div>
+{% endif %}
+{%- endmacro %}

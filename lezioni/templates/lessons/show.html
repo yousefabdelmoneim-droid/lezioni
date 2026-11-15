@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% block title %}{{ lesson.display_title }} · {{ lesson.date|fdate('short') }}{% endblock %}
+{% block mobile_title %}{{ lesson.display_title }}{% endblock %}
+{% block content %}
+<div class="crumbs"><a href="{{ url_for('lessons.agenda', date=lesson.date.isoformat()) }}">{{ _('nav_agenda') }}</a> / {{ lesson.date|fdate('short') }}</div>
+<div class="page-head">
+  <span class="avatar avatar-lg" style="background:{{ lesson.color or 'var(--accent-soft)' }};color:{{ '#fff' if lesson.color else 'var(--accent)' }}">{{ m.icon('layers' if lesson.group_id else 'user') }}</span>
+  <div class="grow">
+    <h1>{% if lesson.group_id %}<a href="{{ url_for('groups.show', group_id=lesson.group_id) }}" style="color:inherit">{{ lesson.display_title }}</a>{% elif lesson.student_id %}<a href="{{ url_for('students.show', student_id=lesson.student_id) }}" style="color:inherit">{{ lesson.display_title }}</a>{% else %}{{ lesson.display_title }}{% endif %}</h1>
+    <div class="row" style="gap:.35rem;margin-top:.3rem">
+      <span class="badge">{{ m.icon('calendar', 'icon-sm') }} {{ lesson.date|fdate }}</span>
+      <span class="badge ltr">{{ lesson.time }}–{{ lesson.end_time }}</span>
+      {{ m.lesson_status(lesson) }}
+      {% if lesson.rescheduled_from %}<span class="badge badge-warn" title="{{ _('rescheduled_from') }}">{{ m.icon('repeat', 'icon-sm') }} <span class="ltr">{{ lesson.rescheduled_from }}</span></span>{% endif %}
+    </div>
+  </div>
+  <a class="btn btn-secondary" href="{{ url_for('reports.lesson_summary', lesson_id=lesson.id) }}" target="_blank" rel="noopener">{{ m.icon('file', 'icon-sm') }} PDF</a>
+</div>
+
+{% if lesson.status == 'cancelled' %}
+<div class="notice notice-warn" style="margin-bottom:1rem">
+  {{ m.icon('ban', 'icon-sm') }} {{ _('lesson_cancelled_notice') }}{% if lesson.cancel_reason %}: <strong>{{ lesson.cancel_reason }}</strong>{% endif %}
+  {{ m.post_button(url_for('lessons.restore', lesson_id=lesson.id), _('restore_lesson'), 'btn btn-secondary btn-sm') }}
+</div>
+{% endif %}
+
+<div class="row" style="margin-bottom:1rem">
+  <details>
+    <summary class="btn btn-secondary btn-sm">{{ m.icon('repeat', 'icon-sm') }} {{ _('reschedule') }}</summary>
+    <form method="post" action="{{ url_for('lessons.reschedule', lesson_id=lesson.id) }}" class="card card-pad row" style="margin-top:.5rem">
+      {{ m.csrf() }}
+      <input class="input" type="date" name="date" value="{{ request.args.get('date') or lesson.date.isoformat() }}" required style="width:auto" aria-label="{{ _('date') }}">
+      <input class="input" type="time" name="time" value="{{ request.args.get('time') or lesson.time }}" required style="width:auto" aria-label="{{ _('time') }}">
+      <input class="input num" type="number" name="duration_min" value="{{ lesson.duration_min }}" min="15" max="600" step="5" style="width:90px" aria-label="{{ _('duration_min') }}">
+      {% if request.args.get('reschedule') %}<label class="check"><input type="checkbox" name="confirm_conflict" value="1"> {{ _('save_despite_conflict') }}</label>{% endif %}
+      <button class="btn btn-primary btn-sm" type="submit">{{ _('save') }}</button>
+    </form>
+  </details>
+  {% if lesson.status != 'cancelled' %}
+    {{ m.post_button(url_for('lessons.cancel', lesson_id=lesson.id), _('cancel_lesson'), 'btn btn-secondary btn-sm', _('confirm_cancel_lesson'), 'ban', reason=True) }}
+  {% endif %}
+  {{ m.post_button(url_for('lessons.toggle_free', lesson_id=lesson.id), _('unmark_free') if lesson.is_free else _('mark_free'), 'btn btn-secondary btn-sm', _('confirm_free_toggle'), 'gift') }}
+  {% if not lesson.attendance %}
+    {{ m.post_button(url_for('lessons.delete', lesson_id=lesson.id), _('delete'), 'btn btn-danger btn-sm', _('confirm_delete_lesson'), 'trash') }}
+  {% endif %}
+</div>
+
+{% if previous and previous.homework %}
+<div class="notice" style="margin-bottom:1rem">
+  <strong>{{ _('homework_from_last') }}</strong> <span class="muted small">({{ previous.date|fdate('short') }})</span>
+  <div style="margin-top:.25rem">{{ previous.homework|nl2br_safe }}</div>
+</div>
+{% endif %}
+
+<section class="card" style="margin-bottom:1rem">
+  <div class="card-head">
+    <h2>{{ _('attendance') }}</h2><span class="badge">{{ participants|length }}</span>
+    <span class="spacer"></span>
+    {% if participants and lesson.status != 'cancelled' %}
+    <button class="btn btn-secondary btn-sm" type="button" data-all-status="present" data-toast="{{ _('all_marked_present') }}">{{ m.icon('check', 'icon-sm') }} {{ _('all_present') }}</button>
+    {% endif %}
+  </div>
+  {% if participants %}
+  <form method="post" action="{{ url_for('lessons.save_attendance', lesson_id=lesson.id) }}">
+    {{ m.csrf() }}
+    {% for s in participants %}{% set a = lesson.attendance_for(s.id) %}{% set acc = accounts.get(s.id) %}
+    <div class="att-row">
+      <input type="hidden" name="student_ids" value="{{ s.id }}">
+      <div class="row" style="flex-wrap:nowrap;min-width:0">
+        {{ m.avatar(s) }}
+        <div style="min-width:0">
+          <a class="strong" style="color:inherit" href="{{ url_for('students.show', student_id=s.id) }}">{{ s.name }}</a>
+          <div class="row" style="gap:.25rem">
+            {% if acc %}{{ m.balance_badge(acc, s) }}{% endif %}
+            {% if a and a.id in consumed %}<span class="badge" title="{{ _('credit_used') }}">{{ (-1)|signed }}</span>{% endif %}
+            {% if lesson.group_id and s not in lesson.group.members(on=lesson.date) %}<span class="badge badge-violet">{{ _('guest') }}</span>{% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="seg" role="radiogroup" aria-label="{{ _('attendance') }} {{ s.name }}">
+        {% for st in ['present', 'late', 'absent', 'excused', 'makeup'] %}
+          <input type="radio" class="st-{{ st }}" id="st-{{ s.id }}-{{ st }}" name="status_{{ s.id }}" value="{{ st }}" data-att {{ 'checked' if a and a.status == st }} {{ 'disabled' if lesson.status == 'cancelled' }}>
+          <label for="st-{{ s.id }}-{{ st }}">{{ _('att_' ~ st) }}</label>
+        {% endfor %}
+        <input type="radio" id="st-{{ s.id }}-none" name="status_{{ s.id }}" value="" {{ 'checked' if not a }} {{ 'disabled' if lesson.status == 'cancelled' }}>
+        <label for="st-{{ s.id }}-none" title="{{ _('not_marked') }}">—</label>
+      </div>
+      <div class="att-extra">
+        <select class="select" name="hw_{{ s.id }}" aria-label="{{ _('homework_done') }}">
+          <option value="">{{ _('homework_done') }}: —</option>
+          {% for h in ['done', 'partial', 'missing'] %}<option value="{{ h }}" {{ 'selected' if a and a.homework_status == h }}>{{ _('homework_done') }}: {{ _('hw_' ~ h) }}</option>{% endfor %}
+        </select>
+        <span class="stars" role="radiogroup" aria-label="{{ _('performance') }}">
+          <input type="radio" name="perf_{{ s.id }}" value="" id="pf-{{ s.id }}-0" {{ 'checked' if not (a and a.performance) }}>
+          {% for n in range(1, 6) %}<input type="radio" name="perf_{{ s.id }}" value="{{ n }}" id="pf-{{ s.id }}-{{ n }}" {{ 'checked' if a and a.performance == n }}><label for="pf-{{ s.id }}-{{ n }}" data-n="{{ n }}" title="{{ n }}/5">★</label>{% endfor %}
+        </span>
+        <input class="input" name="note_{{ s.id }}" value="{{ a.note if a and a.note else '' }}" maxlength="500" placeholder="{{ _('note_for_student') }}" aria-label="{{ _('note') }}">
+        {% if wa_links.get(s.id) %}<a class="btn btn-wa btn-sm" href="{{ wa_links[s.id][1] }}" target="_blank" rel="noopener" title="{{ _('wa_btn_' ~ wa_links[s.id][0]) }}">{{ m.icon('whatsapp', 'icon-sm') }}</a>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    {% if lesson.status != 'cancelled' %}
+    <div class="card-foot row between">
+      <span class="small muted">{{ _('attendance_policy_hint') }} <a href="{{ url_for('settings.index') }}#policy">{{ _('policy') }}</a></span>
+      <button class="btn btn-primary" type="submit">{{ m.icon('check', 'icon-sm') }} {{ _('save_attendance') }}</button>
+    </div>
+    {% endif %}
+  </form>
+  {% else %}
+    <div class="card-body muted small">{{ _('no_participants') }}</div>
+  {% endif %}
+  {% if lesson.status != 'cancelled' %}
+  <details class="card-foot">
+    <summary class="btn btn-ghost btn-sm">{{ m.icon('plus', 'icon-sm') }} {{ _('add_guest_student') }}</summary>
+    <form method="post" action="{{ url_for('lessons.add_guest', lesson_id=lesson.id) }}" class="row" style="margin-top:.5rem">
+      {{ m.csrf() }}
+      <select class="select" name="student_id" style="width:auto">
+        {% set ids = participants|map(attribute='id')|list %}
+        {% for s in all_students if s.id not in ids %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+      </select>
+      <button class="btn btn-secondary btn-sm" type="submit">{{ _('add_as_makeup') }}</button>
+    </form>
+  </details>
+  {% endif %}
+</section>
+
+<section class="card notebook">
+  <div class="card-head"><h2>{{ m.icon('book', 'icon-sm') }} {{ _('lesson_notebook') }}</h2><span class="spacer"></span><span class="save-state" data-save-state aria-live="polite"></span></div>
+  <form method="post" action="{{ url_for('lessons.save_notebook', lesson_id=lesson.id) }}" class="card-body stack" data-autosave="{{ url_for('api.autosave', lesson_id=lesson.id) }}" data-version="{{ lesson.version }}">
+    {{ m.csrf() }}<input type="hidden" name="version" value="{{ lesson.version }}">
+    <input class="input title-input" name="title" data-field="title" value="{{ lesson.title or '' }}" maxlength="200" placeholder="{{ _('lesson_title_ph') }}" aria-label="{{ _('lesson_title') }}">
+    <div class="grid grid-2">
+      <div class="field"><label for="nb-topics">{{ _('topics') }}</label><textarea class="textarea" id="nb-topics" name="topics" data-field="topics" placeholder="{{ _('topics_ph') }}">{{ lesson.topics or '' }}</textarea></div>
+      <div class="field"><label for="nb-homework">{{ _('homework') }}</label><textarea class="textarea" id="nb-homework" name="homework" data-field="homework" placeholder="{{ _('homework_ph') }}">{{ lesson.homework or '' }}</textarea></div>
+    </div>
+    <div class="field"><label for="nb-notes">{{ _('lesson_notes') }}</label><textarea class="textarea" id="nb-notes" name="notes" data-field="notes" style="min-height:160px" placeholder="{{ _('notes_ph') }}">{{ lesson.notes or '' }}</textarea></div>
+    <div class="field"><label for="nb-obs">{{ _('observations') }}</label><textarea class="textarea" id="nb-obs" name="observations" data-field="observations" placeholder="{{ _('observations_ph') }}">{{ lesson.observations or '' }}</textarea></div>
+    <div class="row between">
+      <span class="small muted">{{ _('autosave_hint') }}</span>
+      <button class="btn btn-secondary" type="submit">{{ _('save') }}</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}{{ _('nav_calendar') }}{% endblock %}
+{% block mobile_title %}{{ _('nav_calendar') }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="grow"><h1>{{ _('nav_calendar') }}</h1><p>{{ _('calendar_subtitle') }}</p></div>
+  <a class="btn btn-primary" href="{{ url_for('lessons.new') }}">{{ m.icon('plus', 'icon-sm') }} {{ _('new_lesson') }}</a>
+</div>
+<div class="card card-pad">
+  <div id="calendar" data-events="{{ url_for('api.events') }}"></div>
+  <noscript><p>{{ _('calendar_noscript') }} <a href="{{ url_for('lessons.agenda') }}">{{ _('nav_agenda') }}</a></p></noscript>
+</div>
+<div class="legend" style="margin-top:.7rem">
+  <span><i class="dot" style="background:var(--accent)"></i>{{ _('legend_lesson') }}</span>
+  <span><i class="dot" style="background:transparent;border:1.5px dashed var(--muted)"></i>{{ _('legend_planned') }}</span>
+</div>
+<form id="open-slot-form" method="post" action="{{ url_for('lessons.open_slot') }}" class="hidden">
+  {{ m.csrf() }}<input type="hidden" name="slot_id"><input type="hidden" name="date">
+</form>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='vendor/fullcalendar/fullcalendar.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/fullcalendar/' ~ ('ar' if lang == 'ar' else 'it') ~ '.global.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/calendar.js') }}?v=1"></script>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% from 'lessons/_item.html' import agenda_item with context %}
+{% block title %}{{ _('nav_agenda') }}{% endblock %}
+{% block mobile_title %}{{ _('nav_agenda') }}{% endblock %}
+{% block mobile_action %}<a class="btn btn-primary btn-sm" href="{{ url_for('lessons.new') }}">{{ m.icon('plus', 'icon-sm') }}</a>{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="grow">
+    <h1>{{ _('nav_agenda') }}</h1>
+    <p>{% if view == 'day' %}{{ day|fdate }}{% else %}{{ start|fdate('short') }} – {{ end|fdate('short') }} {{ end.year }}{% endif %}</p>
+  </div>
+  <div class="pills">
+    <a class="pill {{ 'active' if view == 'day' }}" href="{{ url_for('lessons.agenda', view='day', date=day.isoformat()) }}">{{ _('view_day') }}</a>
+    <a class="pill {{ 'active' if view == 'week' }}" href="{{ url_for('lessons.agenda', view='week', date=day.isoformat()) }}">{{ _('view_week') }}</a>
+  </div>
+  <div class="row" style="gap:.3rem">
+    <a class="btn btn-secondary btn-icon" href="{{ url_for('lessons.agenda', view=view, date=prev_d.isoformat()) }}" aria-label="{{ _('previous') }}">{{ m.icon('next' if text_dir == 'rtl' else 'prev', 'icon-sm') }}</a>
+    <a class="btn btn-secondary" href="{{ url_for('lessons.agenda', view=view) }}">{{ _('today') }}</a>
+    <a class="btn btn-secondary btn-icon" href="{{ url_for('lessons.agenda', view=view, date=next_d.isoformat()) }}" aria-label="{{ _('next') }}">{{ m.icon('prev' if text_dir == 'rtl' else 'next', 'icon-sm') }}</a>
+  </div>
+  <a class="btn btn-primary hide-mobile" href="{{ url_for('lessons.new') }}">{{ m.icon('plus', 'icon-sm') }} {{ _('new_lesson') }}</a>
+</div>
+
+<div class="card card-pad">
+  {% set ns = namespace(any=False) %}
+  {% for d, items in days.items() %}
+    {% if items or view == 'day' or d == today %}
+    {% set ns.any = ns.any or items %}
+    <div class="day-block">
+      <h3 class="day-title {{ 'today' if d == today }}">{{ d|fdate('day') }}{% if d == today %} · {{ _('today') }}{% endif %}</h3>
+      {% for it in items %}{{ agenda_item(it) }}{% else %}<p class="muted small">{{ _('no_lessons_day') }}</p>{% endfor %}
+    </div>
+    {% endif %}
+  {% endfor %}
+  {% if not ns.any and view == 'week' %}
+    {{ m.empty_state('calendar', _('no_lessons_week'), _('no_lessons_today_hint'), url_for('lessons.new'), _('new_lesson')) }}
+  {% endif %}
+</div>
+<p class="small muted" style="margin-top:.7rem">{{ _('agenda_legend') }}</p>
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}{{ _('nav_students') }}{% endblock %}
+{% block mobile_title %}{{ _('nav_students') }}{% endblock %}
+{% block mobile_action %}<a class="btn btn-primary btn-sm" href="{{ url_for('students.new') }}">{{ m.icon('plus', 'icon-sm') }}</a>{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="grow"><h1>{{ _('nav_students') }}</h1><p>{{ _('n_students_shown', n=students|length) }}</p></div>
+  <a class="btn btn-secondary hide-mobile" href="{{ url_for('reports.export_students') }}">{{ m.icon('download', 'icon-sm') }} CSV</a>
+  <a class="btn btn-primary hide-mobile" href="{{ url_for('students.new') }}">{{ m.icon('plus', 'icon-sm') }} {{ _('add_student') }}</a>
+</div>
+
+<form class="card card-pad" method="get" style="margin-bottom:1rem">
+  <div class="filters">
+    <div class="search" style="flex:1;min-width:220px">
+      {{ m.icon('search', 'icon-sm') }}
+      <input class="input" type="search" name="q" value="{{ q }}" placeholder="{{ _('search_students') }}" aria-label="{{ _('search_students') }}">
+    </div>
+    <select class="select" name="status" aria-label="{{ _('status') }}">
+      {% for v in ['active', 'paused', 'archived', 'all'] %}<option value="{{ v }}" {{ 'selected' if status == v }}>{{ _('status_' ~ v) }}</option>{% endfor %}
+    </select>
+    <select class="select" name="balance" aria-label="{{ _('balance') }}">
+      {% for v in ['all', 'owing', 'overdue', 'low', 'settled'] %}<option value="{{ v }}" {{ 'selected' if balance == v }}>{{ _('balance_' ~ v) }}</option>{% endfor %}
+    </select>
+    {% if groups %}
+    <select class="select" name="group" aria-label="{{ _('group') }}">
+      <option value="">{{ _('all_groups') }}</option>
+      {% for g in groups %}<option value="{{ g.id }}" {{ 'selected' if group_id == g.id }}>{{ g.name }}</option>{% endfor %}
+    </select>
+    {% endif %}
+    <select class="select" name="sort" aria-label="{{ _('sort') }}">
+      {% for v in ['name', 'balance', 'recent', 'enrolled'] %}<option value="{{ v }}" {{ 'selected' if sort == v }}>{{ _('sort_' ~ v) }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-secondary" type="submit">{{ _('filter') }}</button>
+  </div>
+</form>
+
+<div class="card">
+  {% if students %}
+  <div class="table-wrap">
+    <table class="table responsive">
+      <thead><tr>
+        <th>{{ _('student') }}</th><th>{{ _('groups') }}</th><th>{{ _('remaining_lessons') }}</th><th>{{ _('balance') }}</th><th class="end">{{ _('actions') }}</th>
+      </tr></thead>
+      <tbody>
+      {% for s in students %}{% set a = accounts[s.id] %}
+        <tr class="clickable" data-href="{{ url_for('students.show', student_id=s.id) }}">
+          <td class="primary">
+            <div class="row" style="flex-wrap:nowrap">
+              {{ m.avatar(s) }}
+              <div>
+                <a href="{{ url_for('students.show', student_id=s.id) }}" style="color:inherit" class="strong">{{ s.name }}</a>
+                <div class="small muted">{{ s.school_grade or '' }}{% if s.status != 'active' %} {{ m.student_status(s.status) }}{% endif %}</div>
+              </div>
+            </div>
+          </td>
+          <td data-label="{{ _('groups') }}">{% for mbr in s.memberships if mbr.left_on is none %}<span class="badge" style="margin:1px"><i class="dot" style="background:{{ mbr.group.color }}"></i>{{ mbr.group.name }}</span>{% else %}<span class="muted small">{{ _('individual') }}</span>{% endfor %}</td>
+          <td data-label="{{ _('remaining_lessons') }}" class="num"><strong style="color:{{ 'var(--danger)' if a.remaining < 0 else ('var(--warn)' if a.low_balance else 'inherit') }}">{{ a.remaining|signed }}</strong></td>
+          <td data-label="{{ _('balance') }}"><div class="row" style="gap:.25rem">{{ m.balance_badge(a, s) }}{% if a.settled and a.remaining <= 0 %}<span class="badge badge-ok">{{ _('settled') }}</span>{% endif %}</div></td>
+          <td class="end" data-label="{{ _('actions') }}">
+            <div class="row end" style="gap:.3rem;flex-wrap:nowrap">
+              <form method="post" action="{{ url_for('lessons.quick', student_id=s.id) }}" class="inline-form" data-confirm="{{ _('confirm_quick_lesson', name=s.name) }}">
+                {{ m.csrf() }}<input type="hidden" name="next" value="{{ request.full_path }}">
+                <button class="btn btn-secondary btn-sm" type="submit" title="{{ _('quick_lesson_now') }}">{{ m.icon('bolt', 'icon-sm') }}<span class="hide-mobile"> {{ _('now') }}</span></button>
+              </form>
+              <a class="btn btn-secondary btn-sm" href="{{ url_for('payments.collect', student_id=s.id) }}" title="{{ _('collect_payment') }}">{{ m.icon('euro', 'icon-sm') }}</a>
+            </div>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% elif q or status != 'active' or balance != 'all' or group_id %}
+    {{ m.empty_state('search', _('no_results'), _('no_results_hint')) }}
+  {% else %}
+    {{ m.empty_state('users', _('no_students_yet'), _('no_students_hint'), url_for('students.new'), _('add_student')) }}
+  {% endif %}
+</div>
+{% endblock %}
