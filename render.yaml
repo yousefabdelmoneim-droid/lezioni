@@ -1,17 +1,23 @@
+# Render Blueprint. The service runs in Frankfurt, next to the Neon database
+# (AWS eu-central-1), so every database query stays inside the same region.
 services:
   - type: web
-    name: lezioni-private
+    name: lezioni
     runtime: python
+    region: frankfurt
+    plan: free
+    branch: main
+    autoDeploy: true
     buildCommand: pip install -r requirements.txt
-    # Migrations run automatically when the app boots (safe, transactional, idempotent).
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 60
+    # gunicorn.conf.py sets workers/timeout; migrations run automatically on boot.
+    startCommand: gunicorn app:app
     healthCheckPath: /health
     envVars:
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
-        sync: false   # Neon connection string, set in the Render dashboard
+        sync: false   # Neon connection string (same database as before)
       - key: ADMIN_USERNAME
-        sync: false   # first login account (created once, only if no account exists)
+        sync: false   # only used if no account exists yet
       - key: ADMIN_PASSWORD
-        sync: false   # at least 8 characters; change it later from Settings
+        sync: false
