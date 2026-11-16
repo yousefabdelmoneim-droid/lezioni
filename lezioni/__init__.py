@@ -13,7 +13,7 @@ from .extensions import csrf, db, login_manager, migrate
 
 log = logging.getLogger(__name__)
 
-PUBLIC_ENDPOINTS = {"auth.login", "auth.set_lang", "health", "static"}
+PUBLIC_ENDPOINTS = {"auth.login", "auth.set_lang", "health", "static", "api_v1.login", "api_v1.health"}
 
 
 @event.listens_for(Engine, "connect")
@@ -58,6 +58,19 @@ def create_app(config_class=Config):
         except (TypeError, ValueError):
             return None
 
+    @login_manager.request_loader
+    def load_user_from_bearer(req):
+        """Mobile app: `Authorization: Bearer <token>`, accepted on /api/v1 only."""
+        if not req.path.startswith("/api/v1/"):
+            return None
+        from .services import tokens
+
+        row = tokens.lookup(tokens.bearer_from(req))
+        if row is None:
+            return None
+        g.api_token = row
+        return row.user
+
     @app.route("/health")
     def health():
         return "ok", 200
@@ -65,6 +78,8 @@ def create_app(config_class=Config):
     @app.before_request
     def _require_login():
         g.default_lang = None
+        if request.method == "OPTIONS" and request.path.startswith("/api/v1/"):
+            return app.response_class(status=204)  # CORS preflight; headers added below
         if request.endpoint in PUBLIC_ENDPOINTS or request.endpoint is None:
             return None
         if not current_user.is_authenticated:
@@ -72,6 +87,19 @@ def create_app(config_class=Config):
                 return jsonify({"ok": False, "error": "auth"}), 401
             return redirect(url_for("auth.login", next=request.full_path.rstrip("?") if request.method == "GET" else None))
         return None
+
+    @app.after_request
+    def _cors_for_mobile_api(resp):
+        if request.path.startswith("/api/v1/"):
+            origin = request.headers.get("Origin")
+            if origin and origin in app.config.get("API_CORS_ORIGINS", []):
+                resp.headers["Access-Control-Allow-Origin"] = origin
+                resp.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
+                resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+                resp.headers["Access-Control-Expose-Headers"] = "Content-Disposition"
+                resp.headers["Access-Control-Max-Age"] = "600"
+            resp.headers.add("Vary", "Origin")
+        return resp
 
     @app.after_request
     def _security_headers(resp):

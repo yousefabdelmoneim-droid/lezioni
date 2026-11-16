@@ -560,6 +560,7 @@ _ROWS = [
     ("audit_package_toggle", "تغيير حالة باقة", "Pacchetto modificato"),
     ("audit_auth_locked", "قفل الحساب مؤقتًا", "Account bloccato"),
     ("audit_auth_password", "تغيير كلمة المرور", "Password cambiata"),
+    ("audit_auth_api_login", "دخول من تطبيق أندرويد", "Accesso dall'app Android"),
 ]
 
 # ── Strings with a count: plural forms ──────────────────────────────────────

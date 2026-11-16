@@ -28,6 +28,36 @@ def _ip_fail(ip):
     _ip_attempts.setdefault(ip, []).append(time.time())
 
 
+def authenticate(username, password, ip):
+    """Check credentials with IP and account lockout. Returns (user, None) or (None, "locked"|"invalid").
+
+    Shared by the web login form and the mobile API.
+    """
+    username = (username or "").strip().lower()
+    password = password or ""
+    if _ip_blocked(ip):
+        return None, "locked"
+    user = User.query.filter_by(username=username).first()
+    now = utcnow()
+    if user and user.locked_until and as_utc(user.locked_until) > now:
+        return None, "locked"
+    if user and user.check_password(password):
+        user.failed_logins = 0
+        user.locked_until = None
+        user.last_login_at = now
+        db.session.commit()
+        return user, None
+    _ip_fail(ip)
+    if user:
+        user.failed_logins = (user.failed_logins or 0) + 1
+        if user.failed_logins >= MAX_FAILS:
+            user.locked_until = now + timedelta(minutes=LOCK_MINUTES)
+            user.failed_logins = 0
+            audit.log("auth.locked", "user", user.id, user_id=user.id, summary=user.username)
+        db.session.commit()
+    return None, "invalid"
+
+
 @bp.route("/login", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
@@ -35,32 +65,14 @@ def login():
     no_users = User.query.count() == 0
     if request.method == "POST" and not no_users:
         ip = request.remote_addr or ""  # real client IP (ProxyFix in production)
-        username = (request.form.get("username") or "").strip().lower()
-        password = request.form.get("password") or ""
-        if _ip_blocked(ip):
-            flash(_("login_locked"), "error")
-            return render_template("auth/login.html", no_users=no_users), 429
-        user = User.query.filter_by(username=username).first()
-        now = utcnow()
-        if user and user.locked_until and as_utc(user.locked_until) > now:
-            flash(_("login_locked"), "error")
-            return render_template("auth/login.html", no_users=no_users), 429
-        if user and user.check_password(password):
-            user.failed_logins = 0
-            user.locked_until = None
-            user.last_login_at = now
-            db.session.commit()
+        user, error = authenticate(request.form.get("username"), request.form.get("password"), ip)
+        if user is not None:
             session.permanent = True
             login_user(user, remember=bool(request.form.get("remember")))
             return redirect(safe_next(request.args.get("next")) or url_for("dashboard.index"))
-        _ip_fail(ip)
-        if user:
-            user.failed_logins = (user.failed_logins or 0) + 1
-            if user.failed_logins >= MAX_FAILS:
-                user.locked_until = now + timedelta(minutes=LOCK_MINUTES)
-                user.failed_logins = 0
-                audit.log("auth.locked", "user", user.id, user_id=user.id, summary=user.username)
-            db.session.commit()
+        if error == "locked":
+            flash(_("login_locked"), "error")
+            return render_template("auth/login.html", no_users=no_users), 429
         flash(_("login_invalid"), "error")
         return render_template("auth/login.html", no_users=no_users), 401
     return render_template("auth/login.html", no_users=no_users)

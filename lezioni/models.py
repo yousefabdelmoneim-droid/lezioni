@@ -518,3 +518,22 @@ class Assessment(db.Model):
     @property
     def percent(self):
         return float(self.score) / float(self.max_score) * 100 if self.max_score else 0.0
+
+
+# ── Mobile API tokens ────────────────────────────────────────────────────────
+
+class ApiToken(db.Model):
+    """Bearer token for the Android app. Only a SHA-256 hash of the token is stored."""
+
+    __tablename__ = "api_tokens"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_hash = db.Column(db.String(64), nullable=False, unique=True)
+    name = db.Column(db.String(120), nullable=False, default="", server_default="")
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+    last_used_at = db.Column(db.DateTime(timezone=True))
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    revoked_at = db.Column(db.DateTime(timezone=True))
+
+    user = db.relationship("User")
