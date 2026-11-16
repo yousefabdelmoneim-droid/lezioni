@@ -45,6 +45,14 @@ class Config:
 
     TIMEZONE = "Europe/Rome"
 
+    # Origins allowed to call /api/v1 from a browser engine (the Android app's
+    # WebView is https://localhost; add http://localhost:5173 for development).
+    API_CORS_ORIGINS = [
+        o.strip()
+        for o in os.environ.get("API_CORS_ORIGINS", "https://localhost,capacitor://localhost,http://localhost").split(",")
+        if o.strip()
+    ]
+
 
 class TestConfig(Config):
     TESTING = True

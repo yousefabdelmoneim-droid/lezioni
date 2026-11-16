@@ -12,7 +12,7 @@ from . import factories as f
 
 
 def test_every_page_requires_login(app, client):
-    public = {"auth.login", "auth.set_lang", "health", "static"}
+    public = {"auth.login", "auth.set_lang", "health", "static", "api_v1.health"}
     for rule in app.url_map.iter_rules():
         if rule.endpoint in public or "GET" not in rule.methods or rule.arguments:
             continue

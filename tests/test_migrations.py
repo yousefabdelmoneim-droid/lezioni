@@ -56,7 +56,7 @@ def test_legacy_database_is_upgraded_without_losing_data():
     ensure_schema(app)
     ensure_schema(app)  # idempotent second boot
     with app.app_context():
-        assert db.session.execute(text("SELECT version_num FROM alembic_version")).scalar() == "0003_legacy_backfill"
+        assert db.session.execute(text("SELECT version_num FROM alembic_version")).scalar() == "0004_api_tokens"
         assert Lesson.query.count() == 7
         assert Lesson.query.filter_by(pagato=True).count() == 3  # legacy column untouched
         marco, ahmed = db.session.get(Student, 1), db.session.get(Student, 2)
